@@ -669,20 +669,57 @@ const GT = {
   restR: {x:0,y:0,z:0}, restL: {x:0,y:0,z:0},   // 手腕静止基准（拳类型方向判定）
 };
 
-const MODEL_URLS = [
-  './models/pose_landmarker_lite.task',   // 本地（GitHub Pages / 本地服务器）
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-];
+// 姿态模型下载源（按优先级）：
+//   · GitHub Pages 部署时：gcore.jsdelivr.net 镜像「同一仓库」的 models 文件（国内约 160KB/s，~35s）
+//   · 本地相对路径（本地服务器/localhost 秒加载）
+//   · Google storage 兜底（慢）
+// 注：GitHub Pages 直连（12KB/s）与 storage.googleapis（44KB/s）都慢，故部署后首选 jsdelivr-gcore 镜像。
+function modelUrls() {
+  const urls = ['./models/pose_landmarker_lite.task'];
+  const m = location.host.match(/^([^.]+)\.github\.io$/);
+  if (m) {
+    const user = m[1];
+    const repo = (location.pathname.split('/').filter(Boolean)[0]) || '';
+    if (repo) urls.unshift('https://gcore.jsdelivr.net/gh/' + user + '/' + repo + '@main/models/pose_landmarker_lite.task');
+  }
+  urls.push('https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task');
+  return urls;
+}
+
+// 用 fetch 把模型下载成 Uint8Array（可显示进度），再经 modelAssetBuffer 传入（避免 createFromOptions 阻塞在慢源上）
+async function fetchModel(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const total = +r.headers.get('content-length') || 0;
+  const reader = r.body.getReader();
+  const chunks = [];
+  let got = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    got += value.length;
+    if (total) diag.model = '模型 ' + Math.round(got / total * 100) + '%';
+    else diag.model = '模型 ' + (got / 1048576).toFixed(1) + 'MB';
+  }
+  const buf = new Uint8Array(got);
+  let off = 0;
+  for (const c of chunks) { buf.set(c, off); off += c.length; }
+  return buf;
+}
 
 async function initPose() {
   diag.model = '加载中';
   const vision = await FilesetResolver.forVisionTasks(
     'https://registry.npmmirror.com/@mediapipe/tasks-vision/0.10.14/files/wasm');
   let lastErr = null;
-  for (const url of MODEL_URLS) {
+  for (const url of modelUrls()) {
+    let buf;
+    try { buf = await fetchModel(url); }
+    catch (e) { lastErr = e; continue; }
     for (const delegate of ['GPU', 'CPU']) {
       const opts = {
-        baseOptions: { modelAssetPath: url, delegate },
+        baseOptions: { modelAssetBuffer: buf, delegate },
         runningMode: 'VIDEO', numPoses: 1,
         minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
       };
@@ -1832,6 +1869,8 @@ function updatePhoneBadge() {
 }
 let phoneWs = null;
 function connectPhone() {
+  // GitHub Pages 是纯静态托管，没有 WebSocket 后端，手机联动不可用——直接跳过，避免反复重连刷错误
+  if (/\.github\.io$/.test(location.host)) { S.phoneConnected = false; return; }
   try {
     const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
     phoneWs = new WebSocket(proto + location.host + '/ws?role=game');
@@ -1868,15 +1907,20 @@ $('btnStart').addEventListener('click', async () => {
   $('btnStart').disabled = true;
   $('loading').style.display = 'flex';
   $('camStatus').textContent = '';
-  const jobs = [];
-  jobs.push(initPose().catch(e => { S.poseOK = false; diag.model = '失败'; diag.err = String(e.message || e).slice(0, 60); $('camStatus').textContent = '⚠️ 姿态识别不可用（' + (e.message||'网络/模型加载失败') + '），可用键盘游玩'; }));
-  jobs.push(startCamera().catch(() => { S.camOK = false; }));
-  await Promise.all(jobs);
+  // 只等待摄像头授权（可能弹窗），不再阻塞在姿态模型下载上——模型后台异步加载
+  await startCamera().catch(() => { S.camOK = false; });
   $('loading').style.display = 'none';
-  if (S.camOK) $('camStatus').textContent = S.poseOK ? '✓ 摄像头动作捕捉已就绪' : '摄像头已开启（姿态识别不可用）';
-  else if (!S.camOK) $('camStatus').textContent = '未授权摄像头，使用键盘游玩';
+  if (S.camOK) $('camStatus').textContent = '摄像头已开启，姿态模型后台加载中…';
+  else $('camStatus').textContent = '未授权摄像头，使用键盘游玩';
   startScr.style.display = 'none';
-  resetGame();
+  resetGame();   // 立即进入游戏（键盘可玩），模型加载完成后自动启用体感
+  initPose().then(() => {
+    S.poseOK = true;
+    $('camStatus').textContent = S.camOK ? '✓ 摄像头动作捕捉已就绪' : '✓ 体感已就绪';
+  }).catch(e => {
+    S.poseOK = false; diag.model = '失败'; diag.err = String(e.message || e).slice(0, 60);
+    $('camStatus').textContent = '⚠️ 姿态识别不可用，可用键盘游玩';
+  });
 });
 
 $('btnRestart').addEventListener('click', () => { resetGame(); });
