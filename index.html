@@ -99,11 +99,35 @@
   .spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
-  #gameover{display:none;}
+  #gameover{display:none;overflow-y:auto;justify-content:flex-start;padding:5vh 24px 40px;}
   #gameover .final{font-size:13px;color:#9aa0ad;letter-spacing:.1em;}
-  #gameover .big{font-size:52px;font-weight:900;color:#fff;margin:10px 0;}
+  #gameover .big{font-size:46px;font-weight:900;color:#fff;margin:10px 0;}
   .grid{display:flex;gap:40px;margin:18px 0;font-size:13px;color:#b7bcc6;}
   .grid b{display:block;font-size:26px;color:var(--accent2);}
+
+  /* 结算面板：热量 / 成就 */
+  #goPanel{width:min(640px,94vw);text-align:left;margin:4px auto 0;}
+  .go-sec{margin:14px 0;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+  .go-sec h3{font-size:12px;letter-spacing:.16em;color:#9aa0ad;margin:0 0 10px;text-transform:uppercase;}
+  .go-stats{display:flex;flex-wrap:wrap;gap:10px 26px;}
+  .go-stats .cell{font-size:11px;color:#b7bcc6;}
+  .go-stats .cell b{font-size:22px;color:var(--accent2);display:block;font-weight:900;}
+  .go-kcal{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;}
+  .go-kcal .card{flex:1;min-width:150px;background:rgba(255,214,10,.05);border:1px solid rgba(255,214,10,.22);border-radius:10px;padding:10px 12px;}
+  .go-kcal .card .num{font-size:24px;font-weight:900;color:#ffd60a;line-height:1.1;}
+  .go-kcal .card .lbl{font-size:11px;color:#c9ced9;margin-top:3px;}
+  .go-kcal .card .sub{font-size:11px;color:#8f96a3;margin-top:6px;line-height:1.55;}
+  .go-quip{margin-top:10px;padding:11px 12px;border-radius:10px;border:1px dashed rgba(255,214,10,.32);background:linear-gradient(90deg,rgba(255,214,10,.08),rgba(255,120,60,.05));font-size:13px;color:#ffe8b0;line-height:1.5;letter-spacing:.01em;}
+  .go-quips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .go-quips .q{font-size:12px;color:#ffe8b0;background:rgba(255,214,10,.06);border:1px solid rgba(255,214,10,.2);border-radius:999px;padding:5px 11px;line-height:1.4;}
+  #achGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:8px;}
+  .ach{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:12px;color:#b7bcc6;}
+  .ach .ic{font-size:20px;flex:none;}
+  .ach .t{color:#e8e8ea;font-weight:700;display:block;font-size:12px;}
+  .ach .d{font-size:10px;color:#8f96a3;}
+  .ach.off{opacity:.35;filter:grayscale(.8);}
+  .ach.new{border-color:var(--accent2);box-shadow:0 0 14px rgba(255,214,10,.22);}
+  #achSummary{font-size:12px;color:#ffd60a;margin-top:10px;font-weight:700;letter-spacing:.02em;}
 </style>
 <script type="importmap">
 {
@@ -175,6 +199,29 @@
     <div><b id="foKills">0</b>击杀</div>
     <div><b id="foDist">0</b>米</div>
   </div>
+  <div id="goPanel">
+    <div class="go-sec">
+      <h3>运动消耗 · 本局</h3>
+      <div class="go-stats">
+        <div class="cell"><b id="foKcal">0</b>消耗热量 (kcal)</div>
+        <div class="cell"><b id="foKcalToday">0</b>本日累计 (kcal)</div>
+        <div class="cell"><b id="foTime">0:00</b>运动时长</div>
+      </div>
+      <div class="go-kcal">
+        <div class="card"><div class="num" id="foRun">—</div><div class="lbl">相当于慢跑</div><div class="sub" id="foRunSub">约 0 分钟</div></div>
+        <div class="card"><div class="num" id="foRope">—</div><div class="lbl">相当于跳绳</div><div class="sub" id="foRopeSub">约 0 分钟</div></div>
+        <div class="card"><div class="num" id="foFood">—</div><div class="lbl">相当于食物</div><div class="sub" id="foFoodSub">约 0 碗米饭</div></div>
+        <div class="card"><div class="num" id="foFun">—</div><div class="lbl">相当于 800 米体测</div><div class="sub" id="foFunSub">体测合格了吗？</div></div>
+      </div>
+      <div class="go-quips" id="foQuips"></div>
+      <div class="go-quip" id="foQuip">—</div>
+    </div>
+    <div class="go-sec">
+      <h3>成就</h3>
+      <div id="achGrid"></div>
+      <div id="achSummary"></div>
+    </div>
+  </div>
   <button class="cta" id="btnRestart">再来一次</button>
 </div>
 
@@ -224,6 +271,12 @@ const S = {
   killStreak: 0,          // 连杀计数
   lastKillAt: -1e9,       // 最近击杀时间
   streakTier: -1,         // 已展示的连杀播报等级
+  // 结算统计：成就 / 热量
+  maxCombo: 0,            // 本局最大拳击连击
+  formsUsed: new Set(),   // 本局用过的武士刀招式
+  guardTime: 0,           // 防御姿态累计秒数
+  punches: 0, blades: 0, dodges: 0, shots: 0,   // 动作计数（热量估算）
+  sway: 0,                 // 身体前后移动次数（脸靠近/远离，热量估算）
   // 武器 / 手机联动
   weapon: 'fist',
   katanaUnlocked: false,  // 通关第 3 波后解锁武士刀
@@ -360,6 +413,7 @@ const MAT = {
   zBlood: new THREE.MeshStandardMaterial({ color: 0x4a0d0d, roughness: 0.9 }),
   blood: new THREE.MeshBasicMaterial({ color: 0x8e0f0f }),
 };
+const HIT_RED = new THREE.Color(0xff2d2d);   // 受击闪红颜色
 
 /* ============================================================
    通用人体构建（关节层级）
@@ -484,21 +538,35 @@ function makeHealthBar() {
 }
 
 function spawnZombie(arch, x, z) {
+  const a = ARCHETYPES[arch] || ARCHETYPES.walker;
   let zz = zombiePool.pop();
   if (!zz) {
-    const h = buildHumanoid({ skinMat: MAT.zSkin[arch.color], shirtMat: MAT.zShirt, pantsMat: MAT.zPants, bootMat: MAT.boot, torsoW: 0.42, torsoH: 0.5 });
+    // 每只丧尸独立克隆材质，便于受击闪红（共享材质会连带所有同类一起变色）
+    const skinMat = MAT.zSkin[a.color].clone();
+    const shirtMat = MAT.zShirt.clone();
+    const pantsMat = MAT.zPants.clone();
+    const h = buildHumanoid({ skinMat, shirtMat, pantsMat, bootMat: MAT.boot, torsoW: 0.42, torsoH: 0.5 });
     // 血迹
     const stain = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), MAT.zBlood);
     stain.position.set(0.08, 0.3, 0.14); stain.scale.set(1, 0.7, 0.5); h.torso.add(stain);
     const bar = makeHealthBar();
     bar.g.visible = false;
     scene.add(bar.g);
-    zz = { h, bar, scale: 1, hp: 60, maxHp: 60, speed: 1.7, score: 100, dmg: 10, alive: true,
+    zz = { h, bar, skinMat, shirtMat, pantsMat,
+           baseSkin: new THREE.Color(), baseShirt: new THREE.Color(), basePants: new THREE.Color(), hitFlash: 0,
+           scale: 1, hp: 60, maxHp: 60, speed: 1.7, score: 100, dmg: 10, alive: true,
            state: 'walk', t: Math.random() * 10, stagger: 0, death: 0, x: 0, z: 0, vx: 0, vz: 0, r: 0.5, arch: 'walker' };
     scene.add(zz.h.root);
   }
-  const a = ARCHETYPES[arch] || ARCHETYPES.walker;
   zz.arch = arch;
+  // 重置材质为基础色（复用池里的丧尸可能残留上一只的受击红）
+  zz.baseSkin.copy(MAT.zSkin[a.color].color);
+  zz.baseShirt.copy(MAT.zShirt.color);
+  zz.basePants.copy(MAT.zPants.color);
+  zz.skinMat.color.copy(zz.baseSkin);
+  zz.shirtMat.color.copy(zz.baseShirt);
+  zz.pantsMat.color.copy(zz.basePants);
+  zz.hitFlash = 0;
   zz.scale = a.scale * (0.92 + Math.random() * 0.16);
   zz.r = 0.5 * a.scale;   // 碰撞半径随体型
   const dScale = 1 + S.encounterIndex * 0.16;
@@ -650,6 +718,52 @@ function burstBlood(p, n) {
 }
 
 /* ============================================================
+   挥击气浪 / 刀光特效池（拳击、刀击的「挥出的气」）
+============================================================ */
+const FX_N = 16;
+const fxPool = [];
+{
+  const geo = new THREE.RingGeometry(0.7, 1.0, 24, 1, -Math.PI / 2, Math.PI);  // 半圆弧段
+  for (let i = 0; i < FX_N; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+    const m = new THREE.Mesh(geo, mat);
+    m.visible = false; m.frustumCulled = false;
+    scene.add(m);
+    fxPool.push({ m, life: 0, max: 0, start: 1, flip: 1, rz: 0, vz: 0 });
+  }
+}
+// 各攻击类型的挥击气浪形态：颜色 / 时长 / 初始大小 / 弧面倾斜角 / 前冲速度（flip=true 时斜劈可左右镜像）
+const FX_CFG = {
+  punch:         { color: 0xffffff, life: 0.16, start: 0.5,  rz: 0,    vz: -4 },
+  double:        { color: 0xaee6ff, life: 0.18, start: 0.55, rz: 0,    vz: -4 },
+  flurry:        { color: 0xaee6ff, life: 0.16, start: 0.5,  rz: 0.2,  vz: -4 },
+  haymaker:      { color: 0xffd166, life: 0.24, start: 0.55, rz: 0.35, vz: -3 },
+  knife:         { color: 0xcfe8ff, life: 0.16, start: 0.45, rz: 0,    vz: -5 },
+  katana_slash:  { color: 0x8fe3ff, life: 0.24, start: 0.5,  rz: 0.7,  vz: -1.5, flip: true },
+  katana_chop:   { color: 0xffd166, life: 0.26, start: 0.55, rz: 1.57, vz: -1 },
+  katana_thrust: { color: 0xff9de2, life: 0.18, start: 0.4,  rz: 0,    vz: -6 },
+};
+function spawnSlashFx(kind, dir) {
+  const cfg = FX_CFG[kind];
+  if (!cfg) return;
+  let fx = null;
+  for (const f of fxPool) { if (f.life <= 0) { fx = f; break; } }
+  if (!fx) return;
+  const m = fx.m;
+  fx.life = fx.max = cfg.life;
+  fx.start = cfg.start;
+  fx.rz = cfg.rz;
+  fx.vz = cfg.vz;
+  fx.flip = (cfg.flip && dir < 0) ? -1 : 1;
+  m.visible = true;
+  m.material.color.set(cfg.color);
+  m.material.opacity = 0.85;
+  m.position.set(S.playerX, 1.3, S.playerZ - 0.85);
+  m.rotation.set(0, 0, fx.rz * fx.flip);
+  m.scale.set(cfg.start * fx.flip, cfg.start, cfg.start);
+}
+
+/* ============================================================
    姿态识别（MediaPipe Pose）
 ============================================================ */
 let poseLandmarker = null;
@@ -676,66 +790,136 @@ const GT = {
 };
 
 // 姿态模型下载源（按优先级）：
-//   · GitHub Pages 部署时：gcore.jsdelivr.net 镜像「同一仓库」的 models 文件（国内约 160KB/s，~35s）
+//   · gcore.jsdelivr.net（国内最快实测 ~137KB/s，约 40s）
+//   · jsdelivr.b-cdn.net 备用镜像
 //   · 本地相对路径（本地服务器/localhost 秒加载）
-//   · Google storage 兜底（慢）
-// 注：GitHub Pages 直连（12KB/s）与 storage.googleapis（44KB/s）都慢，故部署后首选 jsdelivr-gcore 镜像。
+//   · Google storage 兜底（国内很慢/可能被墙）
+// 注：模型 5.7MB，从境外 CDN 下载是国内网络的硬瓶颈，无法用代码消除；
+//     首次下载后写入 IndexedDB 缓存，之后秒开，只需慢这一次。
 function modelUrls() {
   const urls = ['./models/pose_landmarker_lite.task'];
   const m = location.host.match(/^([^.]+)\.github\.io$/);
   if (m) {
     const user = m[1];
     const repo = (location.pathname.split('/').filter(Boolean)[0]) || '';
-    if (repo) urls.unshift('https://gcore.jsdelivr.net/gh/' + user + '/' + repo + '@main/models/pose_landmarker_lite.task');
+    if (repo) {
+      const gh = 'gh/' + user + '/' + repo + '@main/models/pose_landmarker_lite.task';
+      urls.unshift('https://jsdelivr.b-cdn.net/' + gh);
+      urls.unshift('https://gcore.jsdelivr.net/' + gh);
+    }
   }
   urls.push('https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task');
   return urls;
 }
 
-// 用 fetch 把模型下载成 Uint8Array（可显示进度），再经 modelAssetBuffer 传入（避免 createFromOptions 阻塞在慢源上）
-async function fetchModel(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const total = +r.headers.get('content-length') || 0;
-  const reader = r.body.getReader();
-  const chunks = [];
-  let got = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    got += value.length;
-    if (total) diag.model = '模型 ' + Math.round(got / total * 100) + '%';
-    else diag.model = '模型 ' + (got / 1048576).toFixed(1) + 'MB';
-  }
-  const buf = new Uint8Array(got);
-  let off = 0;
-  for (const c of chunks) { buf.set(c, off); off += c.length; }
-  return buf;
+// —— IndexedDB 缓存（模型 5.7MB，跨会话缓存，避免每次重新下载）——
+const MODEL_CACHE_KEY = 'pose_landmarker_lite.task';
+function idbOpen() {
+  return new Promise((res, rej) => {
+    let req;
+    try { req = indexedDB.open('zombie-pose-cache', 1); } catch (e) { rej(e); return; }
+    req.onupgradeneeded = () => { try { req.result.createObjectStore('kv'); } catch (e) {} };
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function cacheGet(key) {
+  try {
+    const db = await idbOpen();
+    return await new Promise((res, rej) => {
+      const tx = db.transaction('kv', 'readonly');
+      const rq = tx.objectStore('kv').get(key);
+      rq.onsuccess = () => res(rq.result || null);
+      rq.onerror = () => rej(rq.error);
+    });
+  } catch (e) { return null; }
+}
+async function cacheSet(key, val) {
+  try {
+    const db = await idbOpen();
+    await new Promise((res, rej) => {
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(val, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  } catch (e) { /* 缓存失败不影响主流程 */ }
+}
+
+// 用 fetch 把模型下载成 Uint8Array（可显示进度 + 超时保护），再经 modelAssetBuffer 传入
+async function fetchModel(url, timeoutMs) {
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const total = +r.headers.get('content-length') || 0;
+    const reader = r.body.getReader();
+    const chunks = [];
+    let got = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      got += value.length;
+      if (total) diag.model = '模型 ' + Math.round(got / total * 100) + '%';
+      else diag.model = '模型 ' + (got / 1048576).toFixed(1) + 'MB';
+    }
+    const buf = new Uint8Array(got);
+    let off = 0;
+    for (const c of chunks) { buf.set(c, off); off += c.length; }
+    return buf;
+  } finally { clearTimeout(to); }
 }
 
 async function initPose() {
   diag.model = '加载中';
+  // wasm 运行时（npmmirror 国内 CDN，快）；模型本体单独下载
   const vision = await FilesetResolver.forVisionTasks(
     'https://registry.npmmirror.com/@mediapipe/tasks-vision/0.10.14/files/wasm');
-  let lastErr = null;
-  for (const url of modelUrls()) {
-    let buf;
-    try { buf = await fetchModel(url); }
-    catch (e) { lastErr = e; continue; }
-    for (const delegate of ['GPU', 'CPU']) {
-      const opts = {
-        baseOptions: { modelAssetBuffer: buf, delegate },
-        runningMode: 'VIDEO', numPoses: 1,
-        minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
-      };
-      try {
-        poseLandmarker = await PoseLandmarker.createFromOptions(vision, opts);
-        S.poseOK = true;
-        diag.model = '已加载(' + delegate + ')';
-        return;
-      } catch (e) { lastErr = e; }
+
+  // 1) 优先读缓存（首次之后秒开）
+  let buf = await cacheGet(MODEL_CACHE_KEY);
+  if (!buf) {
+    // 2) 下载：多源 + 重试 + 单源超时（gcore 约 40s，超时给足 90s）
+    const urls = modelUrls();
+    let lastErr = null;
+    outer: for (let attempt = 0; attempt < 2; attempt++) {
+      for (const url of urls) {
+        let host = url;
+        try { host = new URL(url, location.href).host; } catch (e) {}
+        diag.model = '下载 ' + host;
+        diag.err = '';
+        try {
+          buf = await fetchModel(url, 90000);
+          break outer;
+        } catch (e) { lastErr = e; continue; }
+      }
     }
+    if (!buf) {
+      diag.model = '失败';
+      diag.err = '模型下载失败，刷新重试';
+      throw lastErr || new Error('姿态模型下载失败');
+    }
+    await cacheSet(MODEL_CACHE_KEY, buf);   // 3) 写入缓存
+    diag.model = '已缓存(' + (buf.length / 1048576).toFixed(1) + 'MB)';
+  } else {
+    diag.model = '已读缓存';
+  }
+
+  let lastErr = null;
+  for (const delegate of ['GPU', 'CPU']) {
+    const opts = {
+      baseOptions: { modelAssetBuffer: buf, delegate },
+      runningMode: 'VIDEO', numPoses: 1,
+      minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+    };
+    try {
+      poseLandmarker = await PoseLandmarker.createFromOptions(vision, opts);
+      S.poseOK = true;
+      diag.model = '已加载(' + delegate + ')';
+      return;
+    } catch (e) { lastErr = e; }
   }
   diag.model = '失败';
   throw lastErr || new Error('姿态模型加载失败');
@@ -1037,6 +1221,7 @@ function triggerAttack(type, punch) {
   if (!w) return;
 
   if (S.weapon === 'fist') {
+    S.punches++;
     recordPunch(punch || null);   // 记录出拳（体感出拳带类型/手）
     // 拳头连招：0.8s 内连续出拳，2/3/4 拳依次触发更强连招
     if (S.time - S.lastComboAt > 0.8) S.comboCount = 0;
@@ -1052,6 +1237,7 @@ function triggerAttack(type, punch) {
   } else if (S.weapon === 'gun') {
     shootGun();
   } else if (S.weapon === 'katana') {
+    S.blades++; S.formsUsed.add((punch && punch.form) || (KATANA_FORMS[S.katanaForm % KATANA_FORMS.length].id));
     // 武士刀三式：体感识别直接指定招式；键盘/手机挥动则循环 斜劈→竖砍→捅刺
     let f = (punch && punch.form) ? KATANA_FORMS.find(x => x.id === punch.form) : null;
     if (f) {
@@ -1079,6 +1265,7 @@ function triggerAttack(type, punch) {
 function shootGun() {
   if (S.gunCooldown > 0) return;
   S.gunCooldown = 0.35;
+  S.shots++;
   const b = { x: S.playerX + (Math.random() - 0.5) * 0.06, y: 1.3, z: S.playerZ - 1.2, v: 46, dmg: WEAPONS.gun.dmg };
   let m = bulletMeshes.pop();
   if (!m) {
@@ -1132,6 +1319,7 @@ function damageZombie(zz, dmg, name, knock = null, stagger = 0.35, armorBonus = 
   if (zz.state === 'die') return;          // 已死亡不再结算伤害/重置倒地
   if (armorBonus > 1 && (zz.arch === 'brute' || zz.arch === 'titan')) dmg *= armorBonus;  // 竖砍破甲
   zz.hp -= dmg;
+  zz.hitFlash = 1;                         // 受击闪红
   zz.stagger = Math.max(zz.stagger, stagger);
   if (knock === 'side') {
     zz.vx += (zz.x < S.playerX ? -1 : 1) * 3.4; zz.vz -= 0.8;    // 斜劈：横向打飞
@@ -1307,6 +1495,7 @@ function markPunchHit() {
     if (!PUNCH.log[i].hit && S.time - PUNCH.log[i].t < 1.0) {
       PUNCH.log[i].hit = true;
       PUNCH.combo++;                 // 只有真正命中才累计连击
+      S.maxCombo = Math.max(S.maxCombo, PUNCH.combo);
       evaluatePunchStreak();
       break;
     }
@@ -1392,6 +1581,7 @@ function registerEvade(nearMin) {
   if (now - EVADE.lastAt > 3.0) { EVADE.combo = 0; EVADE.shownTier = -1; EVADE.shownMile = -1; }
   EVADE.lastAt = now;
   EVADE.combo++;
+  S.dodges++;
   sfxDodge();
   if (nearMin !== undefined && nearMin < 1.1 && now - (EVADE._lastNear || -1e9) > 4) {
     EVADE._lastNear = now;
@@ -1513,8 +1703,9 @@ function unlockKatana() {
 function startClear() {
   S.phase = 'clear';
   S.clearTimer = 1.4;
+  S.health = S.maxHealth;   // 过完一关自动恢复满血
   if (S.encounterIndex === 2) unlockKatana();   // 清掉第 3 波后获得武士刀
-  else announce('清场！继续前进', '#7cfc00');
+  else announce('清场！满血恢复', '#7cfc00');
 }
 
 /* ============================================================
@@ -1531,11 +1722,204 @@ function damagePlayer(d) {
   if (S.health <= 0) { S.health = 0; gameOver(); }
 }
 
+/* ============================================================
+   结算：成就 + 热量
+============================================================ */
+const ACHIEVEMENTS = [
+  { id: 'first_blood', name: '初尝血腥', desc: '首次击杀丧尸', icon: '🩸', test: st => st.kills >= 1 },
+  { id: 'killer',      name: '屠夫',     desc: '单场击杀 ≥10', icon: '🔪', test: st => st.kills >= 10 },
+  { id: 'slayer',      name: '尸潮杀手', desc: '单场击杀 ≥25', icon: '⚔️', test: st => st.kills >= 25 },
+  { id: 'wave3',       name: '三波斩',   desc: '通关第 3 波',   icon: '🏁', test: st => st.encounterIndex >= 3 },
+  { id: 'katana',      name: '武士刀到手', desc: '解锁武士刀',   icon: '🗡️', test: st => st.katanaUnlocked },
+  { id: 'blade_master', name: '三式精通', desc: '斜劈·竖砍·捅刺都用过', icon: '🌀', test: st => st.formsUsed.size >= 3 },
+  { id: 'combo5',      name: '连击大师', desc: '拳击连击 ≥5',   icon: '👊', test: st => st.maxCombo >= 5 },
+  { id: 'marathon',    name: '远征者',   desc: '推进 100 米',   icon: '🏃', test: st => st.distance >= 100 },
+  { id: 'guardian',    name: '铁壁',     desc: '防御累计 10 秒', icon: '🛡️', test: st => st.guardTime >= 10 },
+];
+
+// 热量估算（按 70kg 成人，量级参考，非精确值）：
+//   仅统计玩家真实肢体动作——出拳/挥刀/射击、闪避(左右横移)、身体前后移动(脸靠近/远离)、防御静力。
+//   游戏内虚拟推进距离(S.distance)不参与计算。
+//   · 静息站立/待命 ≈ 1.4 kcal/min（避免把站桩、观察时间算成快走强度）
+//   · 防御静力支撑（双臂交叉）≈ 静息 + 1.1 kcal/min
+//   · 出拳 0.04 / 挥刀 0.10 / 射击 0.01 kcal·次（单次动作本身消耗很小，避免频繁计数被高估）
+//   · 闪避 0.04 / 前后移动 0.03 kcal·次
+//   · 强度封顶 10 kcal/min（≈高强度有氧拳击上限），防止动作误触发/疯狂连击导致热量虚高
+function calcKcal() {
+  const rest  = (S.time / 60) * 1.4;                    // 静息基线
+  const guard = (S.guardTime / 60) * 1.1;               // 防御静力补差
+  const arms  = S.punches * 0.04 + S.blades * 0.10 + S.shots * 0.01;  // 上肢动作
+  const move  = S.dodges * 0.04 + S.sway * 0.03;        // 身体移动
+  let kcal = rest + guard + arms + move;
+  kcal = Math.min(kcal, (S.time / 60) * 10);            // 每分钟最多 10 kcal 封顶
+  return Math.max(0, Math.round(kcal));
+}
+// 趣味梗库（70kg 成人，单单位活动/食物消耗估算，用于结算「梗墙」随机展示）
+const FUN_QUIPS = [
+  // 运动类
+  { kcal: 30,  u: '套', name: '广播体操', icon: '🤸' },
+  { kcal: 400, u: '场', name: '拳击课',   icon: '🥊' },
+  { kcal: 1.2, u: '个', name: '波比跳',   icon: '🦘' },
+  { kcal: 2.4, u: '层', name: '爬楼梯',   icon: '🪜' },
+  { kcal: 3.5, u: '分钟', name: '平板支撑', icon: '🧘' },
+  { kcal: 40,  u: '套', name: '八段锦',   icon: '🌅' },
+  { kcal: 0.2, u: '个', name: '深蹲',     icon: '🏋️' },
+  { kcal: 250, u: '半场', name: '篮球',   icon: '🏀' },
+  { kcal: 250, u: '半小时', name: '游泳', icon: '🏊' },
+  { kcal: 0.5, u: '个', name: '开合跳',   icon: '🤾' },
+  { kcal: 100, u: '套', name: '帕梅拉',   icon: '🔥' },
+  { kcal: 0.4, u: '个', name: '俯卧撑',   icon: '💪' },
+  // 食物类
+  { kcal: 250, u: '块', name: '炸鸡',     icon: '🍗' },
+  { kcal: 40,  u: '片', name: '肥牛',     icon: '🥩' },
+  { kcal: 100, u: '串', name: '烧烤',     icon: '🍢' },
+  { kcal: 550, u: '个', name: '汉堡',     icon: '🍔' },
+  { kcal: 500, u: '包', name: '薯片',     icon: '🍟' },
+  { kcal: 150, u: '根', name: '雪糕',     icon: '🍦' },
+  { kcal: 140, u: '听', name: '可乐',     icon: '🥤' },
+  { kcal: 350, u: '块', name: '蛋糕',     icon: '🍰' },
+  { kcal: 250, u: '块', name: '披萨',     icon: '🍕' },
+  { kcal: 450, u: '碗', name: '泡面',     icon: '🍜' },
+  { kcal: 350, u: '杯', name: '奶茶',     icon: '🧋' },
+  { kcal: 20,  u: '包', name: '辣条',     icon: '🌶️' },
+  // 生活类
+  { kcal: 30,  u: '圈', name: '遛狗',     icon: '🐕' },
+  { kcal: 150, u: '场', name: '广场舞',   icon: '💃' },
+];
+function renderQuips(kcal) {
+  const pool = FUN_QUIPS.slice();
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const picked = [];
+  for (const q of pool) {
+    const n = kcal / q.kcal;
+    if (n < 0.3 || n > 999) continue;      // 量级不匹配的梗跳过（避免 0.05 场拳击课 / 两万个深蹲）
+    const v = n >= 100 ? Math.round(n) : (n >= 10 ? Math.round(n) : +n.toFixed(1));
+    picked.push('<span class="q">' + q.icon + ' ≈ ' + v + ' ' + q.u + q.name + '</span>');
+    if (picked.length >= 5) break;
+  }
+  const el = $('foQuips');
+  if (el) el.innerHTML = picked.join('');
+}
+
+// 潮评语主题库：随机挑一个主题，按本局消耗档位给一句带梗的话（v 为该主题单位数量）
+const QUIP_TOPICS = [
+  { icon: '🧋', unit: 350, lines: [
+    { min: 500, t: v => '这一局 ≈ ' + v + ' 杯奶茶，负罪感直接清零，放心炫 🧋' },
+    { min: 350, t: () => '今天可以无负罪感喝奶茶了 🧋' },
+    { min: 180, t: () => '半糖奶茶自由达成，再来杯无糖的也不慌 🧋' },
+    { min: 60,  t: () => '奶茶先记一半账，再肝一局就还清 📝' },
+    { min: 0,   t: () => '再挥两拳，奶茶自由就靠这一局了 💪' },
+  ]},
+  { icon: '🍗', unit: 250, lines: [
+    { min: 500, t: v => '这一局 ≈ ' + v + ' 块炸鸡，热量债已清零 🍗' },
+    { min: 250, t: () => '可以无负担来一块炸鸡了 🍗' },
+    { min: 120, t: () => '炸鸡先欠着，半块的账快还上了 🍗' },
+    { min: 0,   t: () => '想炫炸鸡？再杀一波丧尸先 🍗' },
+  ]},
+  { icon: '🍲', unit: 1500, lines: [
+    { min: 1500, t: v => '这一局 ≈ ' + v + ' 顿火锅，请放心下锅 🍲' },
+    { min: 750,  t: () => '半顿火锅的自由，毛肚可以放心涮 🍲' },
+    { min: 300,  t: () => '火锅的锅底钱已经烧出来了 🍲' },
+    { min: 0,    t: () => '想吃火锅？先把这波丧尸涮了 🍲' },
+  ]},
+  { icon: '🍢', unit: 100, lines: [
+    { min: 300, t: v => '这一局 ≈ ' + v + ' 串烧烤，夜宵自由 🍢' },
+    { min: 100, t: () => '可以无负担撸一串烧烤了 🍢' },
+    { min: 0,   t: () => '烧烤摊还没开张，先打会丧尸 🍢' },
+  ]},
+  { icon: '🍰', unit: 350, lines: [
+    { min: 350, t: () => '今天可以理直气壮吃块蛋糕了 🍰' },
+    { min: 150, t: () => '半块蛋糕的热量已经还清 🍰' },
+    { min: 0,   t: () => '蛋糕很甜，先别急着吃 🍰' },
+  ]},
+  { icon: '🍟', unit: 500, lines: [
+    { min: 500, t: () => '一包薯片的热量已消耗，放心开袋 🍟' },
+    { min: 250, t: () => '半包薯片自由达成 🍟' },
+    { min: 0,   t: () => '薯片先收起来，再打一波 🍟' },
+  ]},
+  { icon: '🍜', unit: 450, lines: [
+    { min: 450, t: () => '一碗深夜泡面已经"还"完了 🍜' },
+    { min: 200, t: () => '泡面自由在望，加根肠也不慌 🍜' },
+    { min: 0,   t: () => '饿了？泡面先泡着，打完这波 🍜' },
+  ]},
+];
+function renderQuip(kcal) {
+  const topic = QUIP_TOPICS[Math.floor(Math.random() * QUIP_TOPICS.length)];
+  let line = topic.lines[topic.lines.length - 1];
+  for (const l of topic.lines) { if (kcal >= l.min) { line = l; break; } }
+  const v = Math.round(kcal / topic.unit * 10) / 10;
+  const el = $('foQuip');
+  if (el) el.textContent = line.t(v);
+}
+
+function todayKey() {
+  const d = new Date();
+  return 'zombie_kcal_' + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+}
+function loadJSON(key, fallback) {
+  try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+  catch (e) { return fallback; }
+}
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
 function gameOver() {
   S.over = true; S.running = false;
   $('foScore').textContent = S.score;
   $('foKills').textContent = S.kills;
   $('foDist').textContent = Math.floor(S.distance);
+
+  // —— 热量 ——
+  const kcal = calcKcal();
+  $('foKcal').textContent = kcal;
+  $('foTime').textContent = fmtTime(S.time);
+  // 本日累计（跨局持久化）
+  const key = todayKey();
+  const today = (Number(loadJSON(key, 0)) || 0) + kcal;
+  try { localStorage.setItem(key, JSON.stringify(today)); } catch (e) {}
+  $('foKcalToday').textContent = today;
+
+  // 等价运动（kcal/min，70kg）：慢跑 8.6 / 跳绳 12.3 / 快走 4.3
+  const runMin = kcal / 8.6, ropeMin = kcal / 12.3;
+  $('foRun').textContent = (runMin >= 1 ? Math.round(runMin) : runMin.toFixed(1)) + ' 分';
+  $('foRunSub').textContent = '≈ ' + (kcal / 4.3).toFixed(1) + ' 分钟快走 · 消耗 ' + kcal + ' kcal';
+  $('foRope').textContent = (ropeMin >= 1 ? Math.round(ropeMin) : ropeMin.toFixed(1)) + ' 分';
+  $('foRopeSub').textContent = '≈ ' + (kcal / 12.3).toFixed(1) + ' 分钟连续跳绳';
+  // 等价食物：一碗米饭 ~232 kcal，一听可乐 ~140 kcal，一个苹果 ~95 kcal
+  const rice = kcal / 232, cola = kcal / 140, apple = kcal / 95;
+  $('foFood').textContent = rice.toFixed(1) + ' 碗';
+  $('foFoodSub').textContent = '≈ ' + rice.toFixed(1) + ' 碗米饭 / ' + cola.toFixed(1) + ' 听可乐 / ' + apple.toFixed(1) + ' 个苹果';
+  // 潮评语：随机主题（奶茶/炸鸡/火锅/烧烤/甜品/薯片/泡面）+ 按消耗分档
+  renderQuip(kcal);
+  renderQuips(kcal);   // 随机梗墙
+  // 趣味彩蛋（70kg）：800 米体测 ≈55 kcal，波比跳 ≈1.2 kcal/个，爬楼 ≈2.4 kcal/层
+  const km800 = kcal / 55, burpee = Math.round(kcal / 1.2), floors = Math.round(kcal / 2.4);
+  $('foFun').textContent = (km800 >= 1 ? km800.toFixed(1) + ' 次' : (km800 * 100).toFixed(0) + '%');
+  $('foFunSub').textContent = '你已经在游戏里"跑"完 800 米体测啦 🏁 ≈ ' + km800.toFixed(1) + ' 场 · 波比跳 ' + burpee + ' 个 · 爬楼 ' + floors + ' 层';
+
+  // —— 成就 ——
+  const earned = ACHIEVEMENTS.filter(a => a.test(S)).map(a => a.id);
+  const rawAch = loadJSON('zombie_ach', []);
+  const allUnlocked = Array.isArray(rawAch) ? rawAch : [];
+  const newly = earned.filter(id => !allUnlocked.includes(id));
+  const merged = Array.from(new Set([...allUnlocked, ...earned]));
+  try { localStorage.setItem('zombie_ach', JSON.stringify(merged)); } catch (e) {}
+
+  const grid = $('achGrid');
+  grid.innerHTML = '';
+  for (const a of ACHIEVEMENTS) {
+    const got = allUnlocked.includes(a.id) || earned.includes(a.id);
+    const isNew = newly.includes(a.id);
+    const el = document.createElement('div');
+    el.className = 'ach' + (got ? '' : ' off') + (isNew ? ' new' : '');
+    el.innerHTML = '<span class="ic">' + a.icon + '</span><span><span class="t">' + a.name + (isNew ? ' ✨' : '') +
+      '</span><span class="d">' + a.desc + '</span></span>';
+    grid.appendChild(el);
+  }
+  $('achSummary').textContent = '本局新解锁 ' + newly.length + ' 项 · 累计解锁 ' + merged.length + ' / ' + ACHIEVEMENTS.length + ' 项';
+
   overScr.style.display = 'flex';
 }
 
@@ -1687,6 +2071,7 @@ let lastSpawnZ = 0;
 function update(dt) {
   S.time += dt;
   S.difficulty = S.encounterIndex + 1;
+  if (S.defending) S.guardTime += dt;   // 防御姿态时长（成就/结算）
 
   // 阶段机：前进 → 遭遇战 → 清场 → 继续前进
   if (S.phase === 'walk') {
@@ -1734,6 +2119,11 @@ function update(dt) {
   }
   S.playerZ = THREE.MathUtils.clamp(S.playerZ, -6, 6);   // 前后各 6 米自由活动
 
+  // 身体前后移动计数（脸明显靠近/远离一次记一次，用于热量估算；不含键盘 W/S 与虚拟推进）
+  if (S._swayDir === undefined) S._swayDir = 0;
+  if (S.faceDepth > 0.05 && S._swayDir <= 0) { S.sway++; S._swayDir = 1; }
+  else if (S.faceDepth < -0.05 && S._swayDir >= 0) { S.sway++; S._swayDir = -1; }
+
   // 主角障碍碰撞（不穿透）
   const px0 = S.playerX, pz0 = S.playerZ;
   const pp = resolveObstacle(S.playerX, S.playerZ, 0.5);
@@ -1747,6 +2137,7 @@ function update(dt) {
   if (!S.attack && S.attackQueue.length) {
     S.attack = S.attackQueue.shift();
     S.attack.t = 0;
+    spawnSlashFx(S.attack.type, S.attack.dir || 1);   // 挥击气浪 / 刀光
     if (S.attack.name) {
       // 连招命中（在触发时结算一次较大范围）
       hitZombies(S.attack.range, S.attack.arc, S.attack.aoe, S.attack.dmg, S.attack.name,
@@ -1869,6 +2260,16 @@ function update(dt) {
       zz.death += dt;
       if (zz.death > 1.6) { despawnZombie(zz); continue; }
     }
+
+    // 受击闪红：hitFlash 1→0 衰减，材质颜色由基础色向红色渐变再快速回落（存活/死亡都生效，避免倒地卡红）
+    if (zz.hitFlash > 0) {
+      zz.hitFlash = Math.max(0, zz.hitFlash - dt * 5);
+      const t = zz.hitFlash;
+      zz.skinMat.color.lerpColors(zz.baseSkin, HIT_RED, t);
+      zz.shirtMat.color.lerpColors(zz.baseShirt, HIT_RED, t);
+      zz.pantsMat.color.lerpColors(zz.basePants, HIT_RED, t);
+    }
+
     zz.h.root.position.set(zz.x, zz.h.root.position.y, zz.z);
     if (zz.z > S.playerZ + 10) { despawnZombie(zz); continue; }
     // 头顶血量条：跟随丧尸、面向镜头、按血量缩放变色
@@ -1914,6 +2315,19 @@ function update(dt) {
       const s = Math.max(0, b.life / 0.5);
       b.m.scale.setScalar(s);
       if (b.life <= 0) b.m.visible = false;
+    }
+  }
+
+  // 挥击气浪 / 刀光：快速放大 + 前冲 + 淡出
+  for (const fx of fxPool) {
+    if (fx.life > 0) {
+      fx.life -= dt;
+      const t = 1 - fx.life / fx.max;      // 0→1
+      const s = fx.start * (1 + t * 1.4);
+      fx.m.scale.set(s * fx.flip, s, s);
+      fx.m.position.z += fx.vz * dt;       // 向前冲
+      fx.m.material.opacity = 0.85 * (1 - t);
+      if (fx.life <= 0) fx.m.visible = false;
     }
   }
 
@@ -2010,6 +2424,9 @@ function resetGame() {
   S.playerZ = 0; S.playerVZ = 0; S.faceTargetZ = 0; S.faceDepth = 0;
   S.gunCooldown = 0; S.keyVX = 0; S.keyVZ = 0; S.dodgeVX = 0; S.bodyDodge = 0;
   S.killStreak = 0; S.lastKillAt = -1e9; S.streakTier = -1;
+  // 结算统计清零
+  S.maxCombo = 0; S.formsUsed = new Set(); S.guardTime = 0;
+  S.punches = 0; S.blades = 0; S.dodges = 0; S.shots = 0; S.sway = 0;
   S.lastDamagedAt = -1e9;
   S.defending = false; S.guardHold = 0;
   const kfEl = $('killfeed'); if (kfEl) kfEl.innerHTML = '';
@@ -2100,7 +2517,7 @@ $('btnStart').addEventListener('click', async () => {
   // 只等待摄像头授权（可能弹窗），不再阻塞在姿态模型下载上——模型后台异步加载
   await startCamera().catch(() => { S.camOK = false; });
   $('loading').style.display = 'none';
-  if (S.camOK) $('camStatus').textContent = '摄像头已开启，姿态模型后台加载中…';
+  if (S.camOK) $('camStatus').textContent = '摄像头已开启，姿态模型后台加载中（首次约 40 秒，之后浏览器缓存秒开）…';
   else $('camStatus').textContent = '未授权摄像头，使用键盘游玩';
   startScr.style.display = 'none';
   resetGame();   // 立即进入游戏（键盘可玩），模型加载完成后自动启用体感
