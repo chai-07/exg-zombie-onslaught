@@ -21,6 +21,9 @@
   .wbtn .ico{font-size:34px;line-height:1;}
   .wbtn.sel{border-color:var(--accent);background:linear-gradient(160deg,rgba(255,95,74,.22),rgba(255,95,74,.05));color:#fff;box-shadow:0 0 24px rgba(255,95,74,.35);}
   .wbtn.sel .ico{filter:drop-shadow(0 0 8px rgba(255,95,74,.8));}
+  .wbtn small{font-size:10px;font-weight:600;color:#ff8f8f;letter-spacing:0;}
+  .wbtn.locked{opacity:.45;filter:grayscale(.7);}
+  .wbtn.locked small{color:#ff6b6b;}
   #activate{margin-top:4px;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#ff5f4a,#d9230f);color:#fff;font-size:16px;font-weight:800;letter-spacing:.1em;}
   #activate.off{display:none;}
   .readout{font-size:11px;color:#6b7180;text-align:center;line-height:1.7;min-height:34px;}
@@ -42,7 +45,7 @@
   <div class="grid">
     <button class="wbtn sel" data-w="fist"><span class="ico">👊</span>拳头</button>
     <button class="wbtn" data-w="knife"><span class="ico">🔪</span>匕首</button>
-    <button class="wbtn" data-w="katana"><span class="ico">⚔️</span>武士刀</button>
+    <button class="wbtn locked" id="btnKatana" data-w="katana"><span class="ico">⚔️</span>武士刀<small id="katLock">🔒 第3波解锁</small></button>
     <button class="wbtn" data-w="gun"><span class="ico">🔫</span>枪支</button>
   </div>
 
@@ -59,6 +62,8 @@ const weaponName = $('weaponName'), readout = $('readout'), swingFx = $('swingFx
 
 const WEAPONS = { fist:'拳头', knife:'匕首', katana:'武士刀', gun:'枪支' };
 let weapon = 'fist';
+let katanaLocked = true;
+const katBtn = $('btnKatana'), katLock = $('katLock');
 let ws = null;
 
 function connect() {
@@ -67,17 +72,36 @@ function connect() {
   ws.onopen = () => { dot.classList.add('on'); statusEl.textContent = '已连接'; ipEl.textContent = location.host; };
   ws.onclose = () => { dot.classList.remove('on'); statusEl.textContent = '连接断开，重连中…'; setTimeout(connect, 1200); };
   ws.onerror = () => { statusEl.textContent = '连接错误'; };
+  ws.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+    if (!m || !m.type) return;
+    if (m.type === 'unlock' && m.w === 'katana') {
+      katanaLocked = !m.unlocked;
+      katBtn.classList.toggle('locked', katanaLocked);
+      katLock.textContent = katanaLocked ? '🔒 第3波解锁' : '';
+      if (katanaLocked && weapon === 'katana') selectWeapon('fist', false);
+      statusEl.textContent = m.unlocked ? '武士刀已解锁' : '已连接';
+    } else if (m.type === 'weapon' && m.w && WEAPONS[m.w]) {
+      selectWeapon(m.w, false);   // 电脑端切换同步到手机，不回发避免循环
+    }
+  };
 }
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 
 // 武器切换
+function selectWeapon(w, relay) {
+  document.querySelectorAll('.wbtn').forEach(b => b.classList.toggle('sel', b.dataset.w === w));
+  weapon = w;
+  weaponName.textContent = WEAPONS[w];
+  if (relay !== false) send({ type:'weapon', w });
+}
 document.querySelectorAll('.wbtn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.wbtn').forEach(b => b.classList.remove('sel'));
-    btn.classList.add('sel');
-    weapon = btn.dataset.w;
-    weaponName.textContent = WEAPONS[weapon];
-    send({ type:'weapon', w:weapon });
+    if (btn.dataset.w === 'katana' && katanaLocked) {
+      statusEl.textContent = '武士刀：通关第3波后解锁';
+      return;
+    }
+    selectWeapon(btn.dataset.w);
   });
 });
 

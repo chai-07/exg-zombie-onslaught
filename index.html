@@ -132,7 +132,7 @@
       <div class="stat" id="waveTag">难度 Lv.1</div>
     </div>
     <div class="statrow" style="margin-top:2px;">
-      <div class="stat"><b id="weaponLabel">拳头</b><span>武器 1-4</span></div>
+      <div class="stat"><b id="weaponLabel">拳头</b><span>1-4 换武器 · 3 需通关第3波</span></div>
       <div class="stat"><b id="phoneBadge" style="font-size:12px;color:#ff6b6b;">手机未连接</b></div>
     </div>
   </div>
@@ -148,7 +148,7 @@
     <div id="gestureTag">等待姿态…</div>
     <div id="diag">相机 未开启 | 模型 未加载</div>
   </div>
-  <div id="hint">出拳：向镜头快速出拳 · 防御：双臂胸前交叉(减伤80%)<br/>前后：脸靠近=前进 / 脸远离=后退 · 键盘：空格/J 出拳 · A/D 横移 · W/S 前进后退</div>
+  <div id="hint">出拳：向镜头快速出拳 · 防御：双臂胸前交叉(减伤80%)<br/>武士刀(通关第3波解锁)：双手握拳靠拢后快速挥动 — 斜向挥=斜劈 / 竖向挥=竖砍 / 向前捅=捅刺<br/>前后：脸靠近=前进 / 脸远离=后退 · 键盘：空格/J 攻击 · Z/X/C 直选斜劈/竖砍/捅刺 · A/D 横移 · W/S 前后</div>
 </div>
 
 <div class="screen" id="start">
@@ -158,6 +158,7 @@
   <div class="keys">
     <span class="key"><b>出拳</b> 快速出拳</span>
     <span class="key">连招 <b>双拳 / 疯狂连击 / 重拳终结</b></span>
+    <span class="key"><b>武士刀</b> 通关第3波解锁 · 双手握拳靠拢：斜挥=斜劈 / 竖挥=竖砍 / 前伸=捅刺</span>
   </div>
   <div class="sens"><span>体感灵敏度</span><input type="range" id="sensRange" min="0.5" max="3.0" step="0.1" value="1.0"><b id="sensVal">1.0x</b></div>
   <div class="note">提示：摄像头动作识别建议在光线充足、镜头能看到全身或半身时使用；不授权摄像头也可用键盘畅玩。</div>
@@ -225,6 +226,8 @@ const S = {
   streakTier: -1,         // 已展示的连杀播报等级
   // 武器 / 手机联动
   weapon: 'fist',
+  katanaUnlocked: false,  // 通关第 3 波后解锁武士刀
+  katanaForm: 0,          // 键盘攻击时三式轮流：0斜劈 1竖砍 2捅刺
   keyVX: 0,               // 键盘横移速度
   keyVZ: 0,               // 键盘前后速度（W/S）
   dodgeVX: 0,             // 体感闪避速度（手机倾斜 / 身体横移）
@@ -653,6 +656,7 @@ let poseLandmarker = null;
 const LM = { w: 0, h: 0 };
 const GEST_COOLDOWN = 0.40;
 let lastPunchAt = -1e9;
+let lastBladeAt = -1e9;   // 武士刀三式识别冷却（毫秒）
 
 // 手势跟踪状态：腕-肩归一化距离（出拳=手臂伸直，距离骤增），配合距离/速度峰值保持
 const GT = {
@@ -667,6 +671,8 @@ const GT = {
   facePrev: undefined,  // 上一帧平滑脸宽（用于计算脸宽变化速率）
   faceRateSm: undefined,// 平滑后的脸宽变化速率(px/秒)，判断「主动移动 vs 静止漂移」
   restR: {x:0,y:0,z:0}, restL: {x:0,y:0,z:0},   // 手腕静止基准（拳类型方向判定）
+  // 双手握刀手势跟踪：双腕并拢后的中点轨迹决定刀式
+  blade: { on:false, t0:0, x0:0, y0:0, z0:0, lx:0, ly:0, lz:0, peak:0 },
 };
 
 // 姿态模型下载源（按优先级）：
@@ -785,6 +791,70 @@ function drawSkeleton(lm) {
   }
 }
 
+/* 双手握刀识别：双腕并拢（握拳持刀）后，跟踪双手中点的运动轨迹。
+   · 明显向前（z 变负 / 双臂前伸）= 捅刺
+   · 主要为上下运动 = 竖砍
+   · 上下 + 左右都有明显位移 = 斜劈
+   只在装备已解锁的武士刀时启用，避免与单手出拳判定互相干扰。 */
+function detectBladeGesture(lm, P, R, L, Rs, Ls, shW, chestY, guardNow, now, dt) {
+  const b = GT.blade;
+  if (!S.running || S.over || !S.katanaUnlocked || S.weapon !== 'katana' || guardNow) { b.on = false; return false; }
+
+  const mx = (L.x + R.x) / 2, my = (L.y + R.y) / 2, mz = (L.z + R.z) / 2;
+  const gap = Math.hypot(L.x - R.x, L.y - R.y) / shW;
+  // 握拳近似：食指尖(19/20)离手腕越近越像握拳；关键点不可见时不做否决，避免误杀识别
+  const curled = (wrist, tipIdx) => {
+    const raw = lm[tipIdx];
+    if (!raw) return true;
+    if (raw.visibility !== undefined && raw.visibility < 0.5) return true;
+    const tip = P(tipIdx);
+    return Math.hypot(tip.x - wrist.x, tip.y - wrist.y) / shW < 0.75;
+  };
+  const grip = gap < 0.9 && Math.abs(my - chestY) < shW * 1.3 && curled(L, 19) && curled(R, 20);
+  if (!grip) { b.on = false; return false; }
+
+  const ext = (Math.hypot(R.x - Rs.x, R.y - Rs.y, (R.z - Rs.z) * 0.7) +
+               Math.hypot(L.x - Ls.x, L.y - Ls.y, (L.z - Ls.z) * 0.7)) / 2 / shW;
+  if (!b.on) {
+    b.on = true; b.t0 = now;
+    b.x0 = mx; b.y0 = my; b.z0 = mz; b.ext0 = ext;
+    b.lx = mx; b.ly = my; b.lz = mz; b.peak = 0;
+    return false;
+  }
+
+  const inst = Math.hypot(mx - b.lx, my - b.ly, (mz - b.lz) * 0.8) / shW / dt;
+  b.peak = Math.max(b.peak, inst);
+  b.lx = mx; b.ly = my; b.lz = mz;
+
+  const dx = (mx - b.x0) / shW, dy = (my - b.y0) / shW;
+  const mag = Math.hypot(dx, dy);
+  const push = Math.max(-(mz - b.z0) / shW, (ext - b.ext0) * 1.2);
+  const span = now - b.t0;
+  // 动作超时或位移过大：重新以当前位置作为起手，不判定
+  if (span > 900 || mag > 3 || push > 3) {
+    b.t0 = now; b.x0 = mx; b.y0 = my; b.z0 = mz; b.ext0 = ext; b.peak = 0;
+    return false;
+  }
+  if (span < 55 || b.peak < 2.2 / S.sensitivity || now - lastBladeAt < 520) return false;
+
+  let form = null;
+  const ax = Math.abs(dx), ay = Math.abs(dy);
+  if (push > 0.28 && push > mag * 0.9) form = 'thrust';
+  else if (mag > 0.5) {
+    if (ay > ax * 2.0 && dy > 0) form = 'chop';              // 从上往下竖砍
+    else if (ax > 0.2 && ay > 0.18 && ay < ax * 2.6) form = 'slash';  // 斜向挥动
+  }
+  if (!form) return false;
+
+  lastBladeAt = now;
+  b.on = false;
+  S.gesture = form === 'slash' ? '斜劈!' : form === 'chop' ? '竖砍!' : '捅刺!';
+  // dir = 画面中点位移方向（±1）；镜头镜像，动画需用它反向还原真实挥砍方向
+  const dir = (dx > 0.02) ? 1 : (dx < -0.02) ? -1 : 0;
+  triggerAttack('katana', { form, dir });
+  return true;
+}
+
 function analyzeGestures(lm) {
   // 仅识别上半身出拳：15左腕 16右腕 11左肩 12右肩 13/14 手肘
   // 核心特征 = 手腕到「同侧肩膀」的归一化距离（肩宽为单位）。
@@ -895,12 +965,22 @@ function analyzeGestures(lm) {
     if (S.guardHold <= 0) S.defending = false;
   }
 
+  // 武士刀：双手握拳并拢后的挥动方向识别（优先于单手出拳判定）
+  const bladeHit = detectBladeGesture(lm, P, R, L, Rs, Ls, shW, chestY, guardNow, now, dt);
+
   // 出拳判定（双条件）——防御姿态下不出拳（用当前帧 guardNow 即时判断，而不是带防抖的 defending，
   //   这样放下双臂的瞬间就能立即出拳，不会被防御状态的 0.1s 退出延迟吞掉）
   const distThr = 0.95;                    // 手臂接近伸直（肩宽）
   const velThr = 1.6 / S.sensitivity;      // 快速出拳（肩宽/秒），灵敏度越高阈值越低
-  if (guardNow && S.defending) {
+  const katanaBlocking = S.weapon === 'katana' && S.katanaUnlocked && GT.blade.on;
+  if (bladeHit) {
+    // detectBladeGesture 已设置招式提示
+  } else if (guardNow && S.defending) {
     S.gesture = '防御';
+  } else if (katanaBlocking) {
+    S.gesture = '握刀蓄势';
+  } else if (S.weapon === 'katana') {
+    S.gesture = '双手握刀待命';
   } else if (GT.dPeak > distThr && GT.vPeak > velThr && (GT.dPeak - GT.dMin) > 0.15 && now - lastPunchAt > GEST_COOLDOWN * 1000) {
     lastPunchAt = now;
     GT.dPeak = 0; GT.vPeak = 0;
@@ -929,9 +1009,18 @@ function analyzeGestures(lm) {
 const WEAPONS = {
   fist:   { name: '拳头',   dmg: 26, range: 1.5, arc: 0.85, dur: 0.34 },
   knife:  { name: '匕首',   dmg: 38, range: 1.8, arc: 0.80, dur: 0.30 },
-  katana: { name: '武士刀', dmg: 55, range: 2.2, arc: 1.00, dur: 0.45 },
+  katana: { name: '武士刀', dmg: 68, range: 2.4, arc: 0.70, dur: 0.42 },
   gun:    { name: '枪支',   dmg: 34, range: 30,  arc: 1.00, dur: 0.45 },
 };
+
+/* 武士刀三式：数值差异化
+   arc 是「前方夹角余弦」阈值：越大 = 判定越窄（捅刺是一条直线）。
+   aoe 是扇形外仍吃溅射伤害的半径；splash 是溅射伤害比例。 */
+const KATANA_FORMS = [
+  { id: 'slash',  name: '斜劈', tag: '横扫群敌', dmg: 58, range: 2.50, arc: 0.52, aoe: 1.7, splash: 0.65, dur: 0.44, shake: 0.34, knock: 'side', stagger: 0.38, color: '#8fe3ff', verb: '斜斩群尸' },
+  { id: 'chop',   name: '竖砍', tag: '重击破甲', dmg: 92, range: 2.15, arc: 0.72, aoe: 0.9, splash: 0.40, dur: 0.50, shake: 0.58, knock: 'back', stagger: 0.55, color: '#ffd166', verb: '当头劈斩', armorBonus: 1.35 },
+  { id: 'thrust', name: '捅刺', tag: '直线穿透', dmg: 74, range: 3.20, arc: 0.93, aoe: 0,   splash: 0,    dur: 0.34, shake: 0.18, knock: 'pierce', stagger: 0.20, color: '#ff9de2', verb: '一刀贯入' },
+];
 const bullets = [];   // 子弹 {x,y,z,v,dmg}
 
 const COMBOS = [
@@ -962,8 +1051,27 @@ function triggerAttack(type, punch) {
     }
   } else if (S.weapon === 'gun') {
     shootGun();
+  } else if (S.weapon === 'katana') {
+    // 武士刀三式：体感识别直接指定招式；键盘/手机挥动则循环 斜劈→竖砍→捅刺
+    let f = (punch && punch.form) ? KATANA_FORMS.find(x => x.id === punch.form) : null;
+    if (f) {
+      S.katanaForm = KATANA_FORMS.indexOf(f);
+    } else {
+      f = KATANA_FORMS[S.katanaForm % KATANA_FORMS.length];
+      S.katanaForm = (S.katanaForm + 1) % KATANA_FORMS.length;
+    }
+    S.attackQueue.push({
+      type: 'katana_' + f.id, form: f.id,
+      dmg: f.dmg, range: f.range, arc: f.arc, aoe: f.aoe,
+      splash: f.splash, knock: f.knock, stagger: f.stagger, armorBonus: f.armorBonus || 1,
+      dur: f.dur, t: 0, name: '刀·' + f.name,
+      dir: (punch && punch.dir) || 0,
+    });
+    S.shake = Math.max(S.shake, f.shake);
+    const wl = $('weaponLabel'); if (wl) wl.textContent = WEAPONS.katana.name + '·' + f.name;
+    announce(f.name + ' · ' + f.tag, f.color);
   } else {
-    // 匕首 / 武士刀：单次挥砍
+    // 匕首：单次前刺
     S.attackQueue.push({ type: S.weapon, dmg: w.dmg, range: w.range, arc: w.arc, aoe: 1.3, dur: w.dur, t: 0, name: null });
   }
 }
@@ -1004,27 +1112,36 @@ function nearestZombie() {
   return best;
 }
 
-function hitZombies(range, arc, aoe, dmg, name) {
+function hitZombies(range, arc, aoe, dmg, name, splash = 0.6, knock = null, stagger = 0.35, armorBonus = 1) {
   let hit = 0;
   for (const zz of zombies) {
     if (zz.state === 'die') continue;      // 已死亡丧尸不再被打，避免倒地动画重放
     const dx = zz.x - S.playerX, dz = zz.z - S.playerZ;   // 玩家在 (playerX, playerZ)
     const d = Math.hypot(dx, dz);
     if (d > range) continue;                 // 超出攻击范围打不中（硬上限）
-    if (d < 0.001) { hit++; damageZombie(zz, dmg, name); continue; }
+    if (d < 0.001) { hit++; damageZombie(zz, dmg, name, knock, stagger, armorBonus); continue; }
     const cosA = (-dz) / d;                   // 向前 (-Z) 的夹角余弦
-    if (cosA > arc) { hit++; damageZombie(zz, dmg, name); }
-    else if (d < aoe) { hit++; damageZombie(zz, dmg * 0.6, name); } // 范围溅射
+    if (cosA > arc) { hit++; damageZombie(zz, dmg, name, knock, stagger, armorBonus); }
+    else if (d < aoe) { hit++; damageZombie(zz, dmg * splash, name, knock, stagger * 0.7, armorBonus); } // 范围溅射
   }
   if (hit > 0) { S.shake = Math.max(S.shake, 0.25); markPunchHit(); sfxHit(); }
   return hit;
 }
 
-function damageZombie(zz, dmg, name) {
+function damageZombie(zz, dmg, name, knock = null, stagger = 0.35, armorBonus = 1) {
   if (zz.state === 'die') return;          // 已死亡不再结算伤害/重置倒地
+  if (armorBonus > 1 && (zz.arch === 'brute' || zz.arch === 'titan')) dmg *= armorBonus;  // 竖砍破甲
   zz.hp -= dmg;
-  zz.stagger = 0.35;
-  zz.vx += (Math.random() - 0.5) * 2;
+  zz.stagger = Math.max(zz.stagger, stagger);
+  if (knock === 'side') {
+    zz.vx += (zz.x < S.playerX ? -1 : 1) * 3.4; zz.vz -= 0.8;    // 斜劈：横向打飞
+  } else if (knock === 'back') {
+    zz.vz -= 5.2; zz.vx += (Math.random() - 0.5) * 1.2;          // 竖砍：正面击退
+  } else if (knock === 'pierce') {
+    zz.vz -= 1.8;                                                 // 捅刺：贯入，几乎不推开
+  } else {
+    zz.vx += (Math.random() - 0.5) * 2;
+  }
   burstBlood(zz.h.root.position.clone().add(new THREE.Vector3(0, 1.1, 0)), 12);
   if (zz.hp <= 0) {
     zz.state = 'die'; zz.death = 0;
@@ -1074,7 +1191,11 @@ function onKill(zz, comboName) {
 function addKillFeed(zz, comboName) {
   const w = WEAPONS[S.weapon];
   let label, verb;
-  if (comboName) { label = comboName; verb = '连招终结'; }
+  if (comboName && comboName.startsWith('刀·')) {
+    label = comboName.slice(2);
+    const f = KATANA_FORMS.find(x => x.name === label);
+    verb = f ? f.verb : '一刀封喉';
+  } else if (comboName) { label = comboName; verb = '连招终结'; }
   else {
     label = w.name;
     const arr = WEAPON_VERBS[S.weapon] || WEAPON_VERBS.fist;
@@ -1378,10 +1499,22 @@ function startEncounter() {
   S.shake = Math.max(S.shake, 0.25);
 }
 
+function unlockKatana() {
+  if (S.katanaUnlocked) return;
+  S.katanaUnlocked = true;
+  S.katanaForm = 0;
+  switchWeapon('katana');
+  announce('第 3 波通关 · 解锁武士刀！', '#ffd60a');
+  if (phoneWs && phoneWs.readyState === 1) {
+    phoneWs.send(JSON.stringify({ type: 'unlock', w: 'katana', unlocked: true }));
+  }
+}
+
 function startClear() {
   S.phase = 'clear';
   S.clearTimer = 1.4;
-  announce('清场！继续前进', '#7cfc00');
+  if (S.encounterIndex === 2) unlockKatana();   // 清掉第 3 波后获得武士刀
+  else announce('清场！继续前进', '#7cfc00');
 }
 
 /* ============================================================
@@ -1443,6 +1576,12 @@ function updateHUD() {
 /* ============================================================
    动画姿态（主角 + 丧尸）
 ============================================================ */
+// 刀式挥砍节奏：0 → -1 蓄力，再 -1 → +1 出手
+function bladeSwing(p, windup) {
+  if (p < windup) return -(p / windup);
+  return -1 + 2 * (p - windup) / (1 - windup);
+}
+
 function applyPlayerPose() {
   const wp = S.walkPhase;
   const sw = Math.sin(wp);
@@ -1452,7 +1591,7 @@ function applyPlayerPose() {
   let lSwing = sw * 0.55, rSwing = -sw * 0.55;
   let lLegSwing = -sw * 0.5, rLegSwing = sw * 0.5;
   let rEl = 0, lEl = 0, rKnee = 0, lKnee = 0;
-  let rYaw = 0, lYaw = 0, spin = 0, lean = 0;
+  let rYaw = 0, lYaw = 0, rRoll = 0, spin = 0, lean = 0;
 
   // 攻击覆盖
   if (S.attack) {
@@ -1479,9 +1618,21 @@ function applyPlayerPose() {
     } else if (t === 'knife') {
       // 匕首前刺
       rSwing = 1.4 * punch; rEl = 0.25 * punch; rYaw = 0.2 * punch;
-    } else if (t === 'katana') {
-      // 武士刀横斩
-      rSwing = 1.5 * punch; rEl = 0.1 * punch; rYaw = 0.9 * punch;
+    } else if (t === 'katana_slash') {
+      // 斜劈：右上举刀 → 左下斜斩（dir 反向还原真实左右，镜头镜像）
+      const q = bladeSwing(p, 0.32);
+      const sd = (S.attack.dir && S.attack.dir < 0) ? -1 : 1;
+      rSwing = 1.55 - 0.62 * q; rRoll = -0.95 * q * sd;
+      rEl = 0.12 * (1 - Math.abs(q)); lean = 0.12 * Math.sin(p * Math.PI);
+    } else if (t === 'katana_chop') {
+      // 竖砍：过头蓄力 → 自上而下劈落
+      const q = bladeSwing(p, 0.38);
+      rSwing = 1.80 - 1.05 * q; rRoll = -0.12 * q;
+      rEl = 0.08; lean = 0.16 * Math.max(0, q);
+    } else if (t === 'katana_thrust') {
+      // 捅刺：短促直线突刺
+      rSwing = 1.68 * punch; rEl = -0.06 * punch; rRoll = 0.06 * punch;
+      lean = 0.20 * punch;
     } else if (t === 'gun') {
       // 举枪射击
       rSwing = 1.5 * punch; rEl = 0.1 * punch;
@@ -1492,6 +1643,8 @@ function applyPlayerPose() {
   R.el.rotation.x = rEl + Math.max(0, -rSwing) * 0.4;
   A.el.rotation.x = lEl + Math.max(0, -lSwing) * 0.4;
   R.sh.rotation.y = rYaw; A.sh.rotation.y = lYaw;
+  R.sh.rotation.z = rRoll; A.sh.rotation.z = 0;
+  R.el.rotation.z = rRoll * 0.25;
   L.hip.rotation.x = lLegSwing; G.hip.rotation.x = rLegSwing;
   L.knee.rotation.x = lKnee + Math.max(0, lLegSwing) * 0.6;
   G.knee.rotation.x = rKnee + Math.max(0, rLegSwing) * 0.6;
@@ -1596,7 +1749,8 @@ function update(dt) {
     S.attack.t = 0;
     if (S.attack.name) {
       // 连招命中（在触发时结算一次较大范围）
-      hitZombies(S.attack.range, S.attack.arc, S.attack.aoe, S.attack.dmg, S.attack.name);
+      hitZombies(S.attack.range, S.attack.arc, S.attack.aoe, S.attack.dmg, S.attack.name,
+        S.attack.splash, S.attack.knock, S.attack.stagger, S.attack.armorBonus);
     }
   }
   if (S.attack) {
@@ -1638,6 +1792,12 @@ function update(dt) {
     const zz = zombies[i];
     zz.t += dt;
     zz.z += scroll;
+    // 刀法击退（惯性衰减）：斜劈横飞 / 竖砍击退 / 捅刺微退
+    if (Math.abs(zz.vx) > 0.01 || Math.abs(zz.vz) > 0.01) {
+      zz.x += zz.vx * dt; zz.z += zz.vz * dt;
+      const damp = Math.max(0, 1 - 7 * dt);
+      zz.vx *= damp; zz.vz *= damp;
+    }
     if (zz.state === 'walk') {
       // 期望方向：朝玩家
       let ex = S.playerX - zz.x, ez = S.playerZ - zz.z;
@@ -1807,7 +1967,10 @@ const keys = {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
   keys[e.code] = true;
-  if (e.code === 'Space' || e.code === 'KeyJ') { e.preventDefault(); triggerAttack(); S.gesture = '攻击!'; }
+  if (e.code === 'Space' || e.code === 'KeyJ') { e.preventDefault(); triggerAttack(); if (S.weapon !== 'katana') S.gesture = '攻击!'; }
+  if (e.code === 'KeyZ' && S.weapon === 'katana') { triggerAttack('katana', { form: 'slash' }); S.gesture = '斜劈!'; }
+  if (e.code === 'KeyX' && S.weapon === 'katana') { triggerAttack('katana', { form: 'chop' }); S.gesture = '竖砍!'; }
+  if (e.code === 'KeyC' && S.weapon === 'katana') { triggerAttack('katana', { form: 'thrust' }); S.gesture = '捅刺!'; }
   if (e.code === 'Digit1') switchWeapon('fist');
   if (e.code === 'Digit2') switchWeapon('knife');
   if (e.code === 'Digit3') switchWeapon('katana');
@@ -1834,6 +1997,15 @@ function resetGame() {
   S.health = S.maxHealth; S.score = 0; S.kills = 0; S.distance = 0;
   S.difficulty = 1; S.time = 0; S.comboCount = 0; S.lastComboAt = -1e9;
   S.phase = 'walk'; S.encounterIndex = 0; S.nextEncounterAt = FIRST_ENCOUNTER; S.clearTimer = 0; S.waveLabel = '';
+  // 武士刀每局重新锁定，重开后从第 1 波开始
+  S.katanaUnlocked = false; S.katanaForm = 0; S.weapon = 'fist';
+  GT.blade.on = false; lastBladeAt = -1e9; lastLockedMsgAt = -1e9;
+  setWeaponModel('fist');
+  const wl0 = $('weaponLabel'); if (wl0) wl0.textContent = WEAPONS.fist.name;
+  if (phoneWs && phoneWs.readyState === 1) {
+    phoneWs.send(JSON.stringify({ type: 'unlock', w: 'katana', unlocked: false }));
+    phoneWs.send(JSON.stringify({ type: 'weapon', w: 'fist' }));
+  }
   S.attack = null; S.attackQueue = []; S.playerX = 0; S.playerVX = 0;
   S.playerZ = 0; S.playerVZ = 0; S.faceTargetZ = 0; S.faceDepth = 0;
   S.gunCooldown = 0; S.keyVX = 0; S.keyVZ = 0; S.dodgeVX = 0; S.bodyDodge = 0;
@@ -1854,12 +2026,24 @@ function resetGame() {
 /* ============================================================
    手机联动（WebSocket 接收手机传感器 / 武器指令）
 ============================================================ */
+let lastLockedMsgAt = -1e9;
 function switchWeapon(w) {
   if (!WEAPONS[w]) return;
+  if (w === 'katana' && !S.katanaUnlocked) {
+    if (S.time - lastLockedMsgAt > 2) {
+      lastLockedMsgAt = S.time;
+      announce('武士刀未解锁 · 通关第 3 波获得', '#ff6b6b');
+    }
+    return;
+  }
   S.weapon = w;
   setWeaponModel(w);
-  const wl = $('weaponLabel'); if (wl) wl.textContent = WEAPONS[w].name;
+  const wl = $('weaponLabel');
+  if (wl) wl.textContent = w === 'katana' ? WEAPONS.katana.name + '·' + KATANA_FORMS[S.katanaForm].name : WEAPONS[w].name;
   announce('切换：' + WEAPONS[w].name, '#ffd60a');
+  if (phoneWs && phoneWs.readyState === 1) {
+    phoneWs.send(JSON.stringify({ type: 'weapon', w }));
+  }
 }
 function updatePhoneBadge() {
   const pb = $('phoneBadge');
@@ -1875,7 +2059,11 @@ function connectPhone() {
     const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
     phoneWs = new WebSocket(proto + location.host + '/ws?role=game');
   } catch (e) { return; }
-  phoneWs.onopen = () => { S.phoneConnected = true; updatePhoneBadge(); };
+  phoneWs.onopen = () => {
+    S.phoneConnected = true; updatePhoneBadge();
+    phoneWs.send(JSON.stringify({ type: 'unlock', w: 'katana', unlocked: S.katanaUnlocked }));
+    phoneWs.send(JSON.stringify({ type: 'weapon', w: S.weapon }));
+  };
   phoneWs.onclose = () => { S.phoneConnected = false; S.phoneActive = false; updatePhoneBadge(); setTimeout(connectPhone, 1500); };
   phoneWs.onerror = () => {};
   phoneWs.onmessage = e => {
@@ -1885,7 +2073,9 @@ function connectPhone() {
       switchWeapon(m.w);
     } else if (m.type === 'swing') {
       if (m.w && m.w !== S.weapon) switchWeapon(m.w);
-      triggerAttack();
+      const f = KATANA_FORMS.find(x => x.id === m.form);
+      if (S.weapon === 'katana' && f) triggerAttack('katana', { form: f.id });
+      else triggerAttack();
     } else if (m.type === 'motion') {
       S.phoneGamma = parseFloat(m.gamma) || 0;
       S.phoneActive = true;
