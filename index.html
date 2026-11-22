@@ -37,6 +37,15 @@
   /* 命中提示 */
   #announce{position:absolute;top:38%;left:50%;transform:translateX(-50%);font-size:30px;font-weight:900;letter-spacing:.08em;color:#fff;text-shadow:0 2px 16px rgba(255,59,48,.7);opacity:0;pointer-events:none;white-space:nowrap;}
 
+  /* 大提示 toast（新丧尸 / 新武器登场） */
+  #toast{position:absolute;top:17%;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;opacity:0;z-index:40;max-width:86vw;transition:opacity .35s;}
+  #toast.show{opacity:1;}
+  #toast .box{display:inline-block;padding:16px 28px;border-radius:18px;background:rgba(10,12,18,.82);border:1px solid rgba(255,214,10,.4);box-shadow:0 14px 44px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.2);backdrop-filter:blur(5px);}
+  #toast.show .box{animation:toastIn .45s cubic-bezier(.2,1.5,.4,1);}
+  #toast .tt{font-size:30px;font-weight:900;letter-spacing:.03em;color:#fff;line-height:1.2;text-shadow:0 0 26px rgba(255,214,10,.5),0 2px 14px rgba(255,59,48,.5);}
+  #toast .ts{font-size:15px;font-weight:600;color:#ffd8c0;margin-top:9px;letter-spacing:.03em;line-height:1.45;text-shadow:0 1px 8px rgba(0,0,0,.6);}
+  @keyframes toastIn{0%{transform:translateY(-34px) scale(.9);opacity:0;}60%{transform:translateY(4px) scale(1.03);opacity:1;}100%{transform:translateY(0) scale(1);opacity:1;}}
+
   /* 连杀播报 */
   #streak{position:absolute;top:26%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .15s;}
   #streak.act{opacity:1;}
@@ -162,6 +171,7 @@
   </div>
   <div id="combo"><div id="comboCount">×3</div><div id="comboName">连击</div></div>
   <div id="announce"></div>
+  <div id="toast"><div class="box"><div class="tt" id="toastTitle"></div><div class="ts" id="toastSub"></div></div></div>
   <div id="streak"><div class="zh"></div><div class="en"></div></div>
   <div id="punchStreak"><div class="zh"></div><div class="en"></div></div>
   <div id="killfeed"></div>
@@ -281,6 +291,8 @@ const S = {
   weapon: 'fist',
   katanaUnlocked: false,  // 通关第 3 波后解锁武士刀
   katanaForm: 0,          // 键盘攻击时三式轮流：0斜劈 1竖砍 2捅刺
+  seenWeapons: new Set(), // 本局已弹过大提示的武器（首次切换弹特性提示）
+  seenArchs: new Set(),   // 本局已登场提示过的丧尸品类（首次出现弹特性提示）
   keyVX: 0,               // 键盘横移速度
   keyVZ: 0,               // 键盘前后速度（W/S）
   dodgeVX: 0,             // 体感闪避速度（手机倾斜 / 身体横移）
@@ -518,6 +530,82 @@ const ARCHETYPES = {
   hunter:  { hp: 55, speed: 2.6,  scale: 1.05, score: 220, color: 4, dmg: 16 },   // 猎杀者：中速重击
   titan:   { hp: 280, speed: 0.95, scale: 1.6,  score: 500, color: 5, dmg: 30 },  // 巨无霸：超肉慢速
 };
+// 各丧尸品类外貌：衣服/裤子/发光眼睛颜色（用于差异化外观）
+const ZOMBIE_LOOK = {
+  walker:  { shirt: 0x3a3d38, pants: 0x2b2d33, eyes: 0x000000 },
+  runner:  { shirt: 0x5a2f28, pants: 0x26222a, eyes: 0xff3b30 },
+  brute:   { shirt: 0x4a3f2a, pants: 0x332a1e, eyes: 0xffa500 },
+  crawler: { shirt: 0x3f4a33, pants: 0x22261f, eyes: 0x9dff3a },
+  hunter:  { shirt: 0x2a2a38, pants: 0x1f1f2a, eyes: 0xff2d95 },
+  titan:   { shirt: 0x333a4a, pants: 0x242833, eyes: 0xff2020 },
+};
+// 新丧尸登场大提示文案（名称 + 特性）
+const ZOMBIE_INTRO = {
+  walker:  { name: '普通丧尸', trait: '行动缓慢 · 成群出没，任意攻击都能解决' },
+  runner:  { name: '疾速丧尸', trait: '速度快但血薄 · 会迅速扑来，注意别被近身' },
+  brute:   { name: '坦克丧尸', trait: '皮糙肉厚 · 竖砍对其伤害更高（破甲）' },
+  crawler: { name: '爬行者',   trait: '低矮贴地极快 · 横扫难命中，瞄准下盘' },
+  hunter:  { name: '猎杀者',   trait: '中速高攻 · 会扑咬，优先闪避拉开距离' },
+  titan:   { name: '巨无霸',   trait: '超肉慢速 · 竖砍破甲，别硬拼正面' },
+};
+
+// 为丧尸加差异化装饰件（连帽/肩甲/利爪/胸甲/发光眼睛），返回 { arch: [Mesh...] }，通过 visible 切换。
+// 注意：丧尸 root 会被整体旋转 180°（面向 +Z 玩家），所以「正面」是局部 -Z 方向。
+function buildZombieDecos(h) {
+  const decos = {};
+  const put = (arch, m) => { (decos[arch] = decos[arch] || []).push(m); return m; };
+  const eyeGeo = new THREE.SphereGeometry(0.022, 8, 6);
+  const eye = (c) => new THREE.Mesh(eyeGeo, new THREE.MeshBasicMaterial({ color: c }));
+
+  // runner：连帽
+  {
+    const hood = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 10), new THREE.MeshStandardMaterial({ color: 0x5a2f28, roughness: 0.95 }));
+    hood.position.set(0, 0.26, 0); h.head.add(hood);
+    put('runner', hood);
+  }
+  // brute：肩甲
+  {
+    const padGeo = new THREE.BoxGeometry(0.32, 0.13, 0.3);
+    const padMat = new THREE.MeshStandardMaterial({ color: 0x4a3f2a, roughness: 0.7, metalness: 0.25 });
+    const pl = new THREE.Mesh(padGeo, padMat); pl.position.set(-0.29, 0.47, 0); h.torso.add(pl);
+    const pr = new THREE.Mesh(padGeo, padMat); pr.position.set(0.29, 0.47, 0); h.torso.add(pr);
+    put('brute', pl); put('brute', pr);
+  }
+  // hunter：利爪（朝前 = 局部 -Z）
+  {
+    const clawGeo = new THREE.ConeGeometry(0.035, 0.24, 6);
+    const clawMat = new THREE.MeshStandardMaterial({ color: 0xd8dce4, roughness: 0.4, metalness: 0.6 });
+    const cl = new THREE.Mesh(clawGeo, clawMat); cl.rotation.x = -Math.PI / 2; cl.position.set(0, 0, -0.12); h.armL.hand.add(cl);
+    const cr = new THREE.Mesh(clawGeo, clawMat); cr.rotation.x = -Math.PI / 2; cr.position.set(0, 0, -0.12); h.armR.hand.add(cr);
+    put('hunter', cl); put('hunter', cr);
+  }
+  // titan：胸甲 + 肩刺
+  {
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.34, 0.1), new THREE.MeshStandardMaterial({ color: 0x333a4a, roughness: 0.5, metalness: 0.5 }));
+    chest.position.set(0, 0.28, -0.14); h.torso.add(chest);
+    put('titan', chest);
+    const spikeGeo = new THREE.ConeGeometry(0.06, 0.2, 6);
+    const spikeMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.4, metalness: 0.6 });
+    const sl = new THREE.Mesh(spikeGeo, spikeMat); sl.position.set(-0.26, 0.5, 0); h.torso.add(sl);
+    const sr = new THREE.Mesh(spikeGeo, spikeMat); sr.position.set(0.26, 0.5, 0); h.torso.add(sr);
+    put('titan', sl); put('titan', sr);
+  }
+  // 发光眼睛（疾速/坦克/爬行/猎杀/巨无霸）
+  for (const arch of ['runner', 'brute', 'crawler', 'hunter', 'titan']) {
+    const c = ZOMBIE_LOOK[arch].eyes;
+    const el = eye(c); el.position.set(-0.05, 0.15, -0.105); h.head.add(el);
+    const er = eye(c); er.position.set(0.05, 0.15, -0.105); h.head.add(er);
+    put(arch, el); put(arch, er);
+  }
+  return decos;
+}
+function setZombieDecos(zz, arch) {
+  for (const key in zz.decos) {
+    const on = key === arch;
+    for (const m of zz.decos[key]) m.visible = on;
+  }
+}
+
 const zombies = [];          // 存活
 const zombiePool = [];       // 复用
 
@@ -552,21 +640,39 @@ function spawnZombie(arch, x, z) {
     const bar = makeHealthBar();
     bar.g.visible = false;
     scene.add(bar.g);
-    zz = { h, bar, skinMat, shirtMat, pantsMat,
+    const decos = buildZombieDecos(h);
+    zz = { h, bar, skinMat, shirtMat, pantsMat, decos,
            baseSkin: new THREE.Color(), baseShirt: new THREE.Color(), basePants: new THREE.Color(), hitFlash: 0,
            scale: 1, hp: 60, maxHp: 60, speed: 1.7, score: 100, dmg: 10, alive: true,
            state: 'walk', t: Math.random() * 10, stagger: 0, death: 0, x: 0, z: 0, vx: 0, vz: 0, r: 0.5, arch: 'walker' };
     scene.add(zz.h.root);
   }
   zz.arch = arch;
-  // 重置材质为基础色（复用池里的丧尸可能残留上一只的受击红）
+  const look = ZOMBIE_LOOK[arch] || ZOMBIE_LOOK.walker;
+  // 重置材质为基础色（复用池里的丧尸可能残留上一只的受击红；衣服/裤子按品类取色）
   zz.baseSkin.copy(MAT.zSkin[a.color].color);
-  zz.baseShirt.copy(MAT.zShirt.color);
-  zz.basePants.copy(MAT.zPants.color);
+  zz.baseShirt.setHex(look.shirt);
+  zz.basePants.setHex(look.pants);
   zz.skinMat.color.copy(zz.baseSkin);
   zz.shirtMat.color.copy(zz.baseShirt);
   zz.pantsMat.color.copy(zz.basePants);
   zz.hitFlash = 0;
+  // 复位身体部件缩放（复用池里的丧尸可能残留上一品类的体型）
+  const h = zz.h;
+  h.armL.sh.scale.setScalar(1); h.armR.sh.scale.setScalar(1);
+  h.legL.hip.scale.setScalar(1); h.legR.hip.scale.setScalar(1);
+  h.torso.scale.setScalar(1);
+  // 品类体型差异
+  if (arch === 'brute') {                       // 坦克：粗壮双臂
+    h.armL.sh.scale.setScalar(1.35); h.armR.sh.scale.setScalar(1.35);
+  } else if (arch === 'hunter') {               // 猎杀者：修长手臂配利爪
+    h.armL.sh.scale.setScalar(1.28); h.armR.sh.scale.setScalar(1.28);
+  } else if (arch === 'crawler') {              // 爬行者：短腿长臂贴地
+    h.legL.hip.scale.setScalar(0.4); h.legR.hip.scale.setScalar(0.4);
+    h.armL.sh.scale.setScalar(1.15); h.armR.sh.scale.setScalar(1.15);
+  }
+  // 品类装饰件显隐（连帽/肩甲/利爪/护甲/发光眼睛）
+  setZombieDecos(zz, arch);
   zz.scale = a.scale * (0.92 + Math.random() * 0.16);
   zz.r = 0.5 * a.scale;   // 碰撞半径随体型
   const dScale = 1 + S.encounterIndex * 0.16;
@@ -729,7 +835,7 @@ const fxPool = [];
     const m = new THREE.Mesh(geo, mat);
     m.visible = false; m.frustumCulled = false;
     scene.add(m);
-    fxPool.push({ m, life: 0, max: 0, start: 1, flip: 1, rz: 0, vz: 0 });
+    fxPool.push({ m, life: 0, max: 0, start: 1, flip: 1, rz: 0, ry: 0, rx: 0, vz: 0, sweep: 0, driftX: 0, driftY: 0, driftZ: 0, ox: 0, oy: 0 });
   }
 }
 // 各攻击类型的挥击气浪形态：颜色 / 时长 / 初始大小 / 弧面倾斜角 / 前冲速度（flip=true 时斜劈可左右镜像）
@@ -750,17 +856,25 @@ function spawnSlashFx(kind, dir) {
   for (const f of fxPool) { if (f.life <= 0) { fx = f; break; } }
   if (!fx) return;
   const m = fx.m;
-  fx.life = fx.max = cfg.life;
-  fx.start = cfg.start;
-  fx.rz = cfg.rz;
-  fx.vz = cfg.vz;
+  fx.life = fx.max = cfg.life * (0.85 + Math.random() * 0.35);
+  fx.start = cfg.start * (0.88 + Math.random() * 0.26);
   fx.flip = (cfg.flip && dir < 0) ? -1 : 1;
+  // 每道气浪随机化方向/形态，打破呆板：弧面倾斜抖、绕 Y 摆向、挥动中扫转、随机漂移与出生点偏移
+  fx.rz = cfg.rz + (Math.random() - 0.5) * 0.6;
+  fx.ry = (Math.random() - 0.5) * 0.9;
+  fx.rx = (Math.random() - 0.5) * 0.5;
+  fx.sweep = (0.5 + Math.random() * 0.9) * (Math.random() < 0.5 ? -1 : 1);
+  fx.driftX = (Math.random() - 0.5) * 1.4;
+  fx.driftY = (Math.random() - 0.5) * 0.7;
+  fx.driftZ = cfg.vz * (0.8 + Math.random() * 0.5);
+  fx.ox = (Math.random() - 0.5) * 0.45;
+  fx.oy = (Math.random() - 0.5) * 0.35;
   m.visible = true;
   m.material.color.set(cfg.color);
-  m.material.opacity = 0.85;
-  m.position.set(S.playerX, 1.3, S.playerZ - 0.85);
-  m.rotation.set(0, 0, fx.rz * fx.flip);
-  m.scale.set(cfg.start * fx.flip, cfg.start, cfg.start);
+  m.material.opacity = 0.9;
+  m.position.set(S.playerX + fx.ox, 1.3 + fx.oy, S.playerZ - 0.85);
+  m.rotation.set(fx.rx, fx.ry, fx.rz * fx.flip);
+  m.scale.set(fx.start * fx.flip, fx.start, fx.start);
 }
 
 /* ============================================================
@@ -1321,14 +1435,17 @@ function damageZombie(zz, dmg, name, knock = null, stagger = 0.35, armorBonus = 
   zz.hp -= dmg;
   zz.hitFlash = 1;                         // 受击闪红
   zz.stagger = Math.max(zz.stagger, stagger);
+  // 击退按体型加权：小丧尸（爬行者/疾速）飞得更远，巨无霸/坦克更稳更抗打飞
+  const kscale = 1.6 - zz.scale * 0.5;     // walker≈1.1 / crawler≈1.3 / titan≈0.8
   if (knock === 'side') {
-    zz.vx += (zz.x < S.playerX ? -1 : 1) * 3.4; zz.vz -= 0.8;    // 斜劈：横向打飞
+    zz.vx += (zz.x < S.playerX ? -1 : 1) * 5.5 * kscale; zz.vz -= 1.5 * kscale;   // 斜劈：横向打飞
   } else if (knock === 'back') {
-    zz.vz -= 5.2; zz.vx += (Math.random() - 0.5) * 1.2;          // 竖砍：正面击退
+    zz.vz -= 8.5 * kscale; zz.vx += (Math.random() - 0.5) * 2.6 * kscale;          // 竖砍：正面击退
   } else if (knock === 'pierce') {
-    zz.vz -= 1.8;                                                 // 捅刺：贯入，几乎不推开
+    zz.vz -= 3.2 * kscale;                                                         // 捅刺：贯入击退
   } else {
-    zz.vx += (Math.random() - 0.5) * 2;
+    zz.vx += (Math.random() - 0.5) * 3.2 * kscale;                                 // 拳头/匕首/枪：散开击退
+    zz.vz -= 1.3 * kscale;
   }
   burstBlood(zz.h.root.position.clone().add(new THREE.Vector3(0, 1.1, 0)), 12);
   if (zz.hp <= 0) {
@@ -1679,14 +1796,21 @@ function startEncounter() {
   const n = waveSize(S.encounterIndex);
   const z0 = S.playerZ - 8 - Math.random() * 6;   // 丧尸在玩家前方 8~14 米生成
   const spread = Math.min(1.7, 9 / n);
+  const newArchs = [];
   for (let i = 0; i < n; i++) {
     const arch = pickArch(S.encounterIndex);
+    if (!S.seenArchs.has(arch)) { S.seenArchs.add(arch); newArchs.push(arch); }
     const x = n === 1 ? (Math.random() * 2 - 1) * 1.5 : (i - (n - 1) / 2) * spread;
     spawnZombie(arch, x, z0 - Math.random() * 5);
   }
   S.waveLabel = '第 ' + (S.encounterIndex + 1) + ' 波 · ' + n + ' 只丧尸';
   announce(S.waveLabel, '#ff5f4a');
   S.shake = Math.max(S.shake, 0.25);
+  // 首次出现的新丧尸品类 → 大提示（注意前方 + 特性）
+  for (const arch of newArchs) {
+    const intro = ZOMBIE_INTRO[arch];
+    if (intro) enqueueToast('⚠️ ' + intro.name + ' 出现了！', intro.trait, '#ff5f4a');
+  }
 }
 
 function unlockKatana() {
@@ -1937,6 +2061,51 @@ function announce(text, color) {
     elAnnounce.style.transform = 'translateX(-50%) scale(0.9)';
   }, 600);
 }
+
+/* —— 大提示 toast（新丧尸 / 新武器登场）—— */
+const elToast = $('toast'), elToastTitle = $('toastTitle'), elToastSub = $('toastSub');
+let toastHideT = null;
+function showToast(title, sub, color) {
+  elToastTitle.textContent = title;
+  elToastSub.textContent = sub || '';
+  elToastTitle.style.color = color || '#fff';
+  const box = elToast.querySelector('.box');
+  if (box) box.style.borderColor = color || 'rgba(255,214,10,.4)';
+  elToast.classList.remove('show');
+  void elToast.offsetWidth;               // 强制重排以重触发进入动画
+  elToast.classList.add('show');
+  sfxTitle();
+  clearTimeout(toastHideT);
+  toastHideT = setTimeout(() => elToast.classList.remove('show'), 3400);
+}
+// 队列：多个提示依次展示，避免同时出现相互覆盖
+const toastQueue = [];
+let toastBusy = false;
+function enqueueToast(title, sub, color) {
+  toastQueue.push([title, sub, color]);
+  pumpToast();
+}
+function pumpToast() {
+  if (toastBusy || !toastQueue.length) return;
+  toastBusy = true;
+  const [t, s, c] = toastQueue.shift();
+  showToast(t, s, c);
+  setTimeout(() => { toastBusy = false; pumpToast(); }, 3600);
+}
+// 武器登场提示文案（怎么用 + 特性）
+const WEAPON_INTRO = {
+  fist:   { icon: '🥊', name: '拳头',   how: '空格/J 出拳 · 连续出拳触发连招', trait: '双拳连击 → 疯狂连击 → 重拳终结，越打越强' },
+  knife:  { icon: '🔪', name: '匕首',   how: '空格/J 快速刺击', trait: '攻速最快、单体高伤，适合贴身缠斗' },
+  katana: { icon: '⚔️', name: '武士刀', how: 'Z/X/C 直选三式 · 体感双手握拳靠拢后挥动', trait: '斜劈清群 · 竖砍破甲 · 捅刺穿透' },
+  gun:    { icon: '🔫', name: '枪支',   how: '空格/J 开火', trait: '30 米远程点射，保持距离持续输出' },
+};
+// 首次获得/切换到某武器时弹大提示（拳头在开局弹出）
+function introWeapon(w) {
+  const info = WEAPON_INTRO[w];
+  if (!info || S.seenWeapons.has(w)) return;
+  S.seenWeapons.add(w);
+  enqueueToast(info.icon + ' ' + info.name, info.how + ' ｜ ' + info.trait, '#ffd60a');
+}
 function showCombo(name, count) {
   elComboCount.textContent = '×' + count;
   elComboName.textContent = name;
@@ -2045,16 +2214,29 @@ function applyZombiePose(zz, dt) {
   const wp = zz.t * (4 + zz.speed);
   const sw = Math.sin(wp);
   if (zz.state === 'walk') {
-    h.legL.hip.rotation.x = sw * 0.4;
-    h.legR.hip.rotation.x = -sw * 0.4;
-    h.legL.knee.rotation.x = Math.max(0, sw) * 0.4;
-    h.legR.knee.rotation.x = Math.max(0, -sw) * 0.4;
-    // 双臂前伸（经典丧尸，伸向玩家）
-    h.armL.sh.rotation.x = 1.25; h.armL.el.rotation.x = 0.15;
-    h.armR.sh.rotation.x = 1.25; h.armR.el.rotation.x = 0.15;
-    h.torso.rotation.x = 0.18;
-    h.pelvis.position.y = 0.98 + Math.abs(sw) * 0.03;
-    h.root.rotation.z = Math.sin(wp * 0.5) * 0.08;
+    if (zz.arch === 'crawler') {
+      // 爬行者：低伏贴地爬行，双臂撑地前伸，身体几乎放平
+      h.legL.hip.rotation.x = sw * 0.3;
+      h.legR.hip.rotation.x = -sw * 0.3;
+      h.legL.knee.rotation.x = Math.max(0, sw) * 0.7;
+      h.legR.knee.rotation.x = Math.max(0, -sw) * 0.7;
+      h.armL.sh.rotation.x = 2.35; h.armL.el.rotation.x = 0.25;
+      h.armR.sh.rotation.x = 2.35; h.armR.el.rotation.x = 0.25;
+      h.torso.rotation.x = 0.95;
+      h.pelvis.position.y = 0.42 + Math.abs(sw) * 0.02;
+      h.root.rotation.z = Math.sin(wp * 0.5) * 0.1;
+    } else {
+      h.legL.hip.rotation.x = sw * 0.4;
+      h.legR.hip.rotation.x = -sw * 0.4;
+      h.legL.knee.rotation.x = Math.max(0, sw) * 0.4;
+      h.legR.knee.rotation.x = Math.max(0, -sw) * 0.4;
+      // 双臂前伸（经典丧尸，伸向玩家）
+      h.armL.sh.rotation.x = 1.25; h.armL.el.rotation.x = 0.15;
+      h.armR.sh.rotation.x = 1.25; h.armR.el.rotation.x = 0.15;
+      h.torso.rotation.x = 0.18;
+      h.pelvis.position.y = 0.98 + Math.abs(sw) * 0.03;
+      h.root.rotation.z = Math.sin(wp * 0.5) * 0.08;
+    }
   } else if (zz.state === 'die') {
     // 向后倒地并下陷
     h.root.rotation.x = Math.min(zz.death * 2.6, Math.PI / 2);
@@ -2318,15 +2500,19 @@ function update(dt) {
     }
   }
 
-  // 挥击气浪 / 刀光：快速放大 + 前冲 + 淡出
+  // 挥击气浪 / 刀光：快速放大 + 前冲 + 扫转 + 淡出（每道方向/形态随机，更自然）
   for (const fx of fxPool) {
     if (fx.life > 0) {
       fx.life -= dt;
       const t = 1 - fx.life / fx.max;      // 0→1
-      const s = fx.start * (1 + t * 1.4);
-      fx.m.scale.set(s * fx.flip, s, s);
-      fx.m.position.z += fx.vz * dt;       // 向前冲
-      fx.m.material.opacity = 0.85 * (1 - t);
+      const ease = 1 - Math.pow(1 - t, 3); // ease-out：出手瞬间最快，末尾收敛
+      const s = fx.start * (1 + ease * 1.5);
+      fx.m.scale.set(s * fx.flip, s * (0.9 + Math.random() * 0.2), s);
+      fx.m.rotation.set(fx.rx + fx.sweep * t, fx.ry + fx.sweep * t * 0.35, (fx.rz + fx.sweep * t) * fx.flip);
+      fx.m.position.x += fx.driftX * dt;
+      fx.m.position.y += fx.driftY * dt;
+      fx.m.position.z += fx.driftZ * dt;
+      fx.m.material.opacity = 0.9 * (1 - ease);
       if (fx.life <= 0) fx.m.visible = false;
     }
   }
@@ -2413,6 +2599,7 @@ function resetGame() {
   S.phase = 'walk'; S.encounterIndex = 0; S.nextEncounterAt = FIRST_ENCOUNTER; S.clearTimer = 0; S.waveLabel = '';
   // 武士刀每局重新锁定，重开后从第 1 波开始
   S.katanaUnlocked = false; S.katanaForm = 0; S.weapon = 'fist';
+  S.seenWeapons = new Set(); S.seenArchs = new Set();   // 每局重置登场提示
   GT.blade.on = false; lastBladeAt = -1e9; lastLockedMsgAt = -1e9;
   setWeaponModel('fist');
   const wl0 = $('weaponLabel'); if (wl0) wl0.textContent = WEAPONS.fist.name;
@@ -2458,6 +2645,7 @@ function switchWeapon(w) {
   const wl = $('weaponLabel');
   if (wl) wl.textContent = w === 'katana' ? WEAPONS.katana.name + '·' + KATANA_FORMS[S.katanaForm].name : WEAPONS[w].name;
   announce('切换：' + WEAPONS[w].name, '#ffd60a');
+  introWeapon(w);   // 首次切换到该武器时弹大提示（怎么用 + 特性）
   if (phoneWs && phoneWs.readyState === 1) {
     phoneWs.send(JSON.stringify({ type: 'weapon', w }));
   }
@@ -2521,6 +2709,7 @@ $('btnStart').addEventListener('click', async () => {
   else $('camStatus').textContent = '未授权摄像头，使用键盘游玩';
   startScr.style.display = 'none';
   resetGame();   // 立即进入游戏（键盘可玩），模型加载完成后自动启用体感
+  introWeapon('fist');   // 开局拳头大提示
   initPose().then(() => {
     S.poseOK = true;
     $('camStatus').textContent = S.camOK ? '✓ 摄像头动作捕捉已就绪' : '✓ 体感已就绪';
@@ -2530,7 +2719,7 @@ $('btnStart').addEventListener('click', async () => {
   });
 });
 
-$('btnRestart').addEventListener('click', () => { resetGame(); });
+$('btnRestart').addEventListener('click', () => { resetGame(); introWeapon('fist'); });
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
