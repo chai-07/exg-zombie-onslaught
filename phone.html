@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>手机控制器 · 尸潮突击</title>
+<style>
+  :root{ --bg:#0b0d12; --panel:#141824; --line:#262c3d; --accent:#ff5f4a; --accent2:#ffd60a; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;background:var(--bg);color:#e7eaf0;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden;}
+  body{display:flex;flex-direction:column;padding:14px;gap:12px;user-select:none;}
+  .top{display:flex;align-items:center;gap:8px;font-size:13px;}
+  .dot{width:9px;height:9px;border-radius:50%;background:#ff4d4d;flex:none;}
+  .dot.on{background:#39d353;}
+  .top .ip{color:#6b7180;margin-left:auto;font-size:11px;}
+  .weapon-name{text-align:center;font-size:15px;color:#9aa0ab;}
+  .weapon-name b{color:var(--accent2);font-size:22px;display:block;margin-top:2px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:0;}
+  .wbtn{border:1.5px solid var(--line);border-radius:16px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:16px;font-weight:700;color:#cfd4dd;transition:transform .06s;}
+  .wbtn:active{transform:scale(.94);}
+  .wbtn .ico{font-size:34px;line-height:1;}
+  .wbtn.sel{border-color:var(--accent);background:linear-gradient(160deg,rgba(255,95,74,.22),rgba(255,95,74,.05));color:#fff;box-shadow:0 0 24px rgba(255,95,74,.35);}
+  .wbtn.sel .ico{filter:drop-shadow(0 0 8px rgba(255,95,74,.8));}
+  #activate{margin-top:4px;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#ff5f4a,#d9230f);color:#fff;font-size:16px;font-weight:800;letter-spacing:.1em;}
+  #activate.off{display:none;}
+  .readout{font-size:11px;color:#6b7180;text-align:center;line-height:1.7;min-height:34px;}
+  .readout b{color:#c9ced9;}
+  .swing{position:fixed;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:var(--accent2);opacity:0;}
+  .swing.act{animation:pop .4s ease;}
+  @keyframes pop{0%{opacity:0;transform:scale(.6);}30%{opacity:1;transform:scale(1.15);}100%{opacity:0;transform:scale(1.4);}}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="dot" id="dot"></div>
+    <span id="status">连接中…</span>
+    <span class="ip" id="ip"></span>
+  </div>
+
+  <div class="weapon-name">当前武器<b id="weaponName">拳头</b></div>
+
+  <div class="grid">
+    <button class="wbtn sel" data-w="fist"><span class="ico">👊</span>拳头</button>
+    <button class="wbtn" data-w="knife"><span class="ico">🔪</span>匕首</button>
+    <button class="wbtn" data-w="katana"><span class="ico">⚔️</span>武士刀</button>
+    <button class="wbtn" data-w="gun"><span class="ico">🔫</span>枪支</button>
+  </div>
+
+  <div class="readout" id="readout">等待传感器数据…</div>
+
+  <button id="activate">点此激活体感传感器</button>
+
+  <div class="swing" id="swingFx">⚡</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const dot = $('dot'), statusEl = $('status'), ipEl = $('ip');
+const weaponName = $('weaponName'), readout = $('readout'), swingFx = $('swingFx');
+
+const WEAPONS = { fist:'拳头', knife:'匕首', katana:'武士刀', gun:'枪支' };
+let weapon = 'fist';
+let ws = null;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+  ws = new WebSocket(proto + location.host + '/ws?role=phone');
+  ws.onopen = () => { dot.classList.add('on'); statusEl.textContent = '已连接'; ipEl.textContent = location.host; };
+  ws.onclose = () => { dot.classList.remove('on'); statusEl.textContent = '连接断开，重连中…'; setTimeout(connect, 1200); };
+  ws.onerror = () => { statusEl.textContent = '连接错误'; };
+}
+function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+// 武器切换
+document.querySelectorAll('.wbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.wbtn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    weapon = btn.dataset.w;
+    weaponName.textContent = WEAPONS[weapon];
+    send({ type:'weapon', w:weapon });
+  });
+});
+
+// 传感器
+let motionOn = false;
+const GT = { gmag:0, amag:0, gamma:0, lastSwing:-1e9, lastSend:0 };
+
+function onMotion(e) {
+  const g = e.rotationRate || {};   // 陀螺仪角速度 °/s
+  const gmag = Math.hypot(g.alpha||0, g.beta||0, g.gamma||0);
+  const a = e.acceleration || {};   // 不含重力 m/s²
+  let amag = Math.hypot(a.x||0, a.y||0, a.z||0);
+  if (!a.x && !a.y && !a.z) {
+    const ag = e.accelerationIncludingGravity || {};
+    amag = Math.abs(Math.hypot(ag.x||0, ag.y||0, ag.z||0) - 9.8);
+  }
+  GT.gmag = gmag; GT.amag = amag;
+
+  // 挥动检测：陀螺仪角速度突增（对旋转/挥动手臂最敏感）
+  const now = performance.now();
+  if (gmag > 350 && now - GT.lastSwing > 420) {
+    GT.lastSwing = now;
+    send({ type:'swing', w:weapon, mag:Math.round(gmag) });
+    swingFx.classList.remove('act'); void swingFx.offsetWidth; swingFx.classList.add('act');
+    if (navigator.vibrate) navigator.vibrate(40);
+  }
+}
+
+function onOrient(e) {
+  if (e.gamma != null) GT.gamma = e.gamma;   // -90~90，左右倾斜
+}
+
+// 高频发送 motion + tilt（30Hz）
+setInterval(() => {
+  if (!motionOn || !ws || ws.readyState !== 1) return;
+  const now = performance.now();
+  if (now - GT.lastSend < 33) return;
+  GT.lastSend = now;
+  send({ type:'motion', gm:GT.gmag.toFixed(0), am:GT.amag.toFixed(1), gamma:GT.gamma.toFixed(0) });
+}, 33);
+
+// 实时读数
+setInterval(() => {
+  readout.innerHTML = '角速度 <b>' + GT.gmag.toFixed(0) + '</b>°/s · 加速度 <b>' + GT.amag.toFixed(1) + '</b>m/s² · 倾斜 <b>' + GT.gamma.toFixed(0) + '</b>°<br/>快速挥动手机 = 攻击，左右倾斜 = 闪避';
+}, 150);
+
+async function activate() {
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      const r = await DeviceMotionEvent.requestPermission();
+      if (r !== 'granted') { alert('需要授权传感器才能体感操作'); return; }
+    }
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      await DeviceOrientationEvent.requestPermission();
+    }
+  } catch (e) { /* 安卓无需权限 */ }
+  window.addEventListener('devicemotion', onMotion);
+  window.addEventListener('deviceorientation', onOrient);
+  motionOn = true;
+  $('activate').classList.add('off');
+  readout.textContent = '体感已激活，挥动手机试试！';
+}
+
+$('activate').addEventListener('click', activate);
+
+// 未连上服务器时也能直接激活（本地调试）
+connect();
+</script>
+</body>
+</html>
