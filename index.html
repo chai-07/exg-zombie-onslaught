@@ -278,6 +278,9 @@ const S = {
   waveLabel: '',
   comboCount: 0,
   lastComboAt: -1e9,
+  knockCharge: 0,          // 连击充能（连续挥拳/剑击 3 次触发大击退）
+  lastKnockAt: -1e9,       // 上次充能攻击时间
+  lastKnockWeapon: '',     // 上次充能攻击的武器（换武器则重置）
   killStreak: 0,          // 连杀计数
   lastKillAt: -1e9,       // 最近击杀时间
   streakTier: -1,         // 已展示的连杀播报等级
@@ -877,6 +880,33 @@ function spawnSlashFx(kind, dir) {
   m.scale.set(fx.start * fx.flip, fx.start, fx.start);
 }
 
+// 冲击波特效池（完整圆环，地面扩散，用于「大击退」大招）
+const SHOCK_N = 3;
+const shockPool = [];
+{
+  const geo = new THREE.RingGeometry(0.88, 1.0, 40);   // 完整圆环
+  for (let i = 0; i < SHOCK_N; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+    const m = new THREE.Mesh(geo, mat);
+    m.visible = false; m.frustumCulled = false;
+    scene.add(m);
+    shockPool.push({ m, life: 0, max: 0 });
+  }
+}
+function spawnShockwave() {
+  let s = null;
+  for (const f of shockPool) { if (f.life <= 0) { s = f; break; } }
+  if (!s) return;
+  s.life = s.max = 0.42;
+  const m = s.m;
+  m.visible = true;
+  m.material.color.set(0xffd166);
+  m.material.opacity = 0.9;
+  m.position.set(S.playerX, 0.14, S.playerZ - 0.3);
+  m.rotation.set(-Math.PI / 2, 0, 0);   // 水平环
+  m.scale.setScalar(0.4);
+}
+
 /* ============================================================
    姿态识别（MediaPipe Pose）
 ============================================================ */
@@ -1257,7 +1287,10 @@ function analyzeGestures(lm) {
   // 防抖：连续保持约 0.1s 进入防御；松开后快速退出（dt*5），避免防御残留吞掉紧接着的出拳
   if (guardNow) {
     S.guardHold = Math.min(0.3, S.guardHold + dt);
-    if (S.guardHold >= 0.1) S.defending = true;
+    if (S.guardHold >= 0.1) {
+      if (!S.defending) sfxBlock();   // 刚进入防御姿态：格挡音
+      S.defending = true;
+    }
   } else {
     S.guardHold = Math.max(0, S.guardHold - dt * 5);
     if (S.guardHold <= 0) S.defending = false;
@@ -1336,6 +1369,7 @@ function triggerAttack(type, punch) {
 
   if (S.weapon === 'fist') {
     S.punches++;
+    sfxPunch();                  // 出拳 whoosh（体感/键盘统一）
     recordPunch(punch || null);   // 记录出拳（体感出拳带类型/手）
     // 拳头连招：0.8s 内连续出拳，2/3/4 拳依次触发更强连招
     if (S.time - S.lastComboAt > 0.8) S.comboCount = 0;
@@ -1348,6 +1382,7 @@ function triggerAttack(type, punch) {
     } else {
       S.attackQueue.push({ type: 'punch', dmg: w.dmg, range: w.range, arc: w.arc, aoe: 1.2, dur: w.dur, t: 0, name: null });
     }
+    addKnockCharge('fist');   // 连续挥拳 3 次攒一次大击退
   } else if (S.weapon === 'gun') {
     shootGun();
   } else if (S.weapon === 'katana') {
@@ -1367,12 +1402,15 @@ function triggerAttack(type, punch) {
       dur: f.dur, t: 0, name: '刀·' + f.name,
       dir: (punch && punch.dir) || 0,
     });
+    addKnockCharge('katana');   // 连续剑击 3 次攒一次大击退
+    sfxSwing();                 // 挥刀 whoosh
     S.shake = Math.max(S.shake, f.shake);
     const wl = $('weaponLabel'); if (wl) wl.textContent = WEAPONS.katana.name + '·' + f.name;
     announce(f.name + ' · ' + f.tag, f.color);
   } else {
     // 匕首：单次前刺
     S.attackQueue.push({ type: S.weapon, dmg: w.dmg, range: w.range, arc: w.arc, aoe: 1.3, dur: w.dur, t: 0, name: null });
+    sfxSwing();   // 匕首挥击 whoosh
   }
 }
 
@@ -1438,23 +1476,76 @@ function damageZombie(zz, dmg, name, knock = null, stagger = 0.35, armorBonus = 
   // 击退按体型加权：小丧尸（爬行者/疾速）飞得更远，巨无霸/坦克更稳更抗打飞
   const kscale = 1.6 - zz.scale * 0.5;     // walker≈1.1 / crawler≈1.3 / titan≈0.8
   if (knock === 'side') {
-    zz.vx += (zz.x < S.playerX ? -1 : 1) * 5.5 * kscale; zz.vz -= 1.5 * kscale;   // 斜劈：横向打飞
+    zz.vx += (zz.x < S.playerX ? -1 : 1) * 33 * kscale; zz.vz -= 9 * kscale;   // 斜劈：横向打飞
   } else if (knock === 'back') {
-    zz.vz -= 8.5 * kscale; zz.vx += (Math.random() - 0.5) * 2.6 * kscale;          // 竖砍：正面击退
+    zz.vz -= 51 * kscale; zz.vx += (Math.random() - 0.5) * 15.6 * kscale;        // 竖砍：正面击退
   } else if (knock === 'pierce') {
-    zz.vz -= 3.2 * kscale;                                                         // 捅刺：贯入击退
+    zz.vz -= 19.2 * kscale;                                                       // 捅刺：贯入击退
   } else {
-    zz.vx += (Math.random() - 0.5) * 3.2 * kscale;                                 // 拳头/匕首/枪：散开击退
-    zz.vz -= 1.3 * kscale;
+    zz.vx += (Math.random() - 0.5) * 6.4 * kscale;                               // 拳头/匕首/枪：散开击退
+    zz.vz -= 2.6 * kscale;
   }
   burstBlood(zz.h.root.position.clone().add(new THREE.Vector3(0, 1.1, 0)), 12);
-  if (zz.hp <= 0) {
-    zz.state = 'die'; zz.death = 0;
-    if (zz.bar) zz.bar.g.visible = false;
-    S.kills++; S.score += zz.score;
-    burstBlood(zz.h.root.position.clone().add(new THREE.Vector3(0, 0.6, 0)), 30);
-    onKill(zz, name);
+  // 丧尸嘶吼：只在被击中时发出（按品类，音量随距离衰减）
+  const gd = Math.hypot(zz.x - S.playerX, zz.z - S.playerZ);
+  playZombieGroan(zz.arch, gd);
+  if (zz.hp <= 0) killZombie(zz, name);
+}
+
+function killZombie(zz, name) {
+  zz.state = 'die'; zz.death = 0;
+  if (zz.bar) zz.bar.g.visible = false;
+  S.kills++; S.score += zz.score;
+  burstBlood(zz.h.root.position.clone().add(new THREE.Vector3(0, 0.6, 0)), 30);
+  onKill(zz, name);
+}
+
+// 连击充能：连续挥拳 / 剑击 3 次攒一次「大击退」冲击波
+const KNOCK_CHAIN_WINDOW = 1.2;   // 两次攻击之间的最大间隔（秒）
+function addKnockCharge(weaponType) {
+  const now = S.time;
+  if (S.lastKnockWeapon === weaponType && now - S.lastKnockAt <= KNOCK_CHAIN_WINDOW) {
+    S.knockCharge++;
+  } else {
+    S.knockCharge = 1;
+    S.lastKnockWeapon = weaponType;
   }
+  S.lastKnockAt = now;
+  if (S.knockCharge === 2) {
+    announce('蓄力中 · 再一下释放冲击波！', '#ffd166');
+  }
+  if (S.knockCharge >= 3) {
+    S.knockCharge = 0;
+    triggerBigKnock();
+  }
+}
+
+// 大击退冲击波：把周围丧尸朝远离玩家的方向大幅推开 + 少量伤害 + 强眩晕
+function triggerBigKnock() {
+  const R = 4.6;
+  let hit = 0;
+  for (const zz of zombies) {
+    if (zz.state === 'die') continue;
+    const dx = zz.x - S.playerX, dz = zz.z - S.playerZ;
+    const d = Math.hypot(dx, dz);
+    if (d > R) continue;
+    const kscale = 1.6 - zz.scale * 0.5;                 // 体型抗性
+    const push = 14 + (1 - d / R) * 34;                  // 越近推越远
+    const nx = d < 0.001 ? 0 : dx / d, nz = d < 0.001 ? -1 : dz / d;
+    zz.vx += nx * push * kscale;
+    zz.vz += nz * push * kscale;
+    zz.hp -= 35;
+    zz.hitFlash = 1;
+    zz.stagger = Math.max(zz.stagger, 0.7);
+    burstBlood(zz.h.root.position.clone().add(new THREE.Vector3(0, 1.1, 0)), 10);
+    if (zz.hp <= 0) killZombie(zz, '冲击波');
+    hit++;
+  }
+  spawnShockwave();
+  S.shake = Math.max(S.shake, 1.0);
+  flashScreen();
+  sfxBoom();
+  showStreak({ zh: '冲击波！', en: 'SHOCKWAVE' }, $('punchStreak'), '#ffd166');
 }
 
 /* ============================================================
@@ -1555,10 +1646,112 @@ function tone(freq, dur, type, gain, when, slideTo) {
   osc.connect(g); g.connect(audioCtx.destination);
   osc.start(t0); osc.stop(t0 + dur + 0.05);
 }
-function sfxPunch() { tone(180, 0.08, 'square', 0.22, 0, 90); }         // 咚
-function sfxHit() { tone(320, 0.06, 'square', 0.26, 0, 160); }          // 哒
-function sfxKill() { tone(120, 0.18, 'sawtooth', 0.3, 0, 60); }
-function sfxDodge() { tone(700, 0.12, 'sine', 0.18, 0, 1500); }         // 嗖（上扬）
+/* —— 真实音效采样（CC0 素材，运行时从 audio/ 加载）—— */
+const SFX = {};                 // name -> AudioBuffer
+let sfxReady = false;
+const SFX_FILES = {
+  punch: 'punch.ogg', punchCombo: 'punch-combo.ogg', kick: 'kick.ogg',
+  swordSwing: 'sword-swing.ogg', swordClash: 'sword-clash.ogg', swordDraw: 'sword-draw.ogg', stab: 'dagger-stab.ogg',
+  block: 'shield-block.ogg', parry: 'parry.ogg',
+  step: 'steps-grass.ogg', dash: 'dash.ogg',
+  zombieGroan: 'zombie-groan.ogg', growl: 'monster-growl.ogg', ghost: 'ghost.ogg', goblin: 'goblin-laugh.ogg',
+  wolf: 'wolf-howl.ogg', roar: 'dragon-roar.ogg', bossRoar: 'boss-roar.ogg', squeak: 'creature-squeak.ogg',
+  zb1: 'zombie_2106.mp3', zb2: 'zombie_2107.mp3', zb3: 'zombie_2108.mp3', zb4: 'zombie_2110.mp3', zb5: 'zombie_2111.mp3', zb6: 'zombie_2112.mp3',
+  gameOver: 'game-over.ogg', victory: 'victory.ogg',
+  bgm: 'bgm.mp3',
+};
+async function loadSfx() {
+  ensureAudio();
+  if (!audioCtx) return;
+  await Promise.all(Object.entries(SFX_FILES).map(async ([name, file]) => {
+    try {
+      const r = await fetch('audio/' + file);
+      if (!r.ok) return;
+      const ab = await r.arrayBuffer();
+      SFX[name] = await audioCtx.decodeAudioData(ab);
+    } catch (e) { /* 单个素材失败忽略，其它照常 */ }
+  }));
+  sfxReady = true;
+  startMusic();
+}
+function playSfx(name, opts = {}) {
+  if (!audioCtx || !SFX[name]) return false;
+  const src = audioCtx.createBufferSource();
+  src.buffer = SFX[name];
+  src.playbackRate.value = (opts.rate || 1) * (1 + (Math.random() - 0.5) * (opts.variation || 0));
+  const g = audioCtx.createGain();
+  g.gain.value = opts.volume != null ? opts.volume : 1;
+  src.connect(g); g.connect(audioCtx.destination);
+  src.start();
+  return true;
+}
+// 背景配乐：循环播放 bgm.mp3（用户指定曲目）
+let musicNodes = [];
+function startMusic() {
+  stopMusic();
+  if (!audioCtx || !SFX.bgm) return;
+  const src = audioCtx.createBufferSource();
+  src.buffer = SFX.bgm; src.loop = true;
+  const g = audioCtx.createGain(); g.gain.value = 0.55;
+  src.connect(g); g.connect(audioCtx.destination);
+  src.start();
+  musicNodes.push(src);
+}
+function stopMusic() {
+  for (const s of musicNodes) { try { s.stop(); } catch (e) {} }
+  musicNodes = [];
+}
+
+function sfxPunch() {                                                    // 出拳（whoosh）
+  if (playSfx('punch', { variation: 0.35, volume: 0.55 })) return;
+  tone(180, 0.08, 'square', 0.22, 0, 90);
+}
+function sfxHit() {                                                      // 命中（按武器分层）
+  if (S.weapon === 'katana') { if (playSfx('swordClash', { variation: 0.15, volume: 0.95 })) return; }
+  else if (S.weapon === 'knife') { if (playSfx('stab', { variation: 0.15, volume: 0.9 })) return; }
+  else { if (playSfx('kick', { variation: 0.3, volume: 0.9 })) return; }
+  tone(320, 0.06, 'square', 0.26, 0, 160);
+}
+function sfxSwing() {                                                    // 刀剑/匕首挥击出手（whoosh）
+  if (S.weapon === 'katana') { if (playSfx('swordSwing', { rate: 0.9 + Math.random() * 0.3, volume: 0.7 })) return; }
+  else if (S.weapon === 'knife') { if (playSfx('swordSwing', { rate: 1.15, volume: 0.5 })) return; }
+}
+function sfxBlock() {                                                    // 防御（格挡 / 盾挡随机）
+  const n = Math.random() < 0.5 ? 'block' : 'parry';
+  if (playSfx(n, { variation: 0.15, volume: 0.85 })) return;
+  tone(180, 0.08, 'triangle', 0.2, 0, 120);
+}
+function sfxStep() {                                                     // 移动脚步（低频）
+  playSfx('step', { variation: 0.2, volume: 0.4 });
+}
+function sfxKill() {
+  playSfx('punchCombo', { variation: 0.12, volume: 0.75 });
+  tone(120, 0.18, 'sawtooth', 0.3, 0, 60);
+}
+function sfxDodge() {
+  if (playSfx('dash', { variation: 0.2, volume: 0.8 })) return;
+  tone(700, 0.12, 'sine', 0.18, 0, 1500);
+}
+
+// 丧尸嘶吼：按品类映射到不同声音，仅在受击时触发、音量随距离衰减
+let lastStepAt = -1e9, lastGroanAt = -1e9;
+const ZOMBIE_SOUNDS = {
+  walker:  ['zb1', 'zb2', 'zb3', 'zombieGroan'],
+  runner:  ['zb4', 'zb5', 'zb6', 'squeak'],
+  brute:   ['growl', 'roar'],
+  crawler: ['squeak', 'goblin', 'ghost'],
+  hunter:  ['wolf', 'growl', 'ghost'],
+  titan:   ['bossRoar', 'roar'],
+};
+function playZombieGroan(arch, dist) {
+  const now = S.time;
+  if (now - lastGroanAt < 0.06) return;          // 轻微节流，避免 AOE 同时命中多只时炸耳
+  lastGroanAt = now;
+  const pool = ZOMBIE_SOUNDS[arch] || ['zombieGroan', 'growl'];
+  const name = pool[Math.floor(Math.random() * pool.length)];
+  const vol = THREE.MathUtils.clamp(1.3 - dist / 6, 0.2, 1.0);
+  playSfx(name, { variation: 0.25, volume: vol });
+}
 function sfxStreak(tier) {
   const base = 200 + (tier || 0) * 45;
   tone(base, 0.1, 'square', 0.3, 0, base * 0.5);
@@ -1604,7 +1797,6 @@ function recordPunch(p) {
   // 连击播报计数只在「命中」时累加（见 markPunchHit），挥空拳不计入，避免击空也弹播报
   PUNCH.log.push({ type: p.type, hand: p.hand, t: now, hit: false });
   if (PUNCH.log.length > 14) PUNCH.log.shift();
-  sfxPunch();
   evaluatePunchTitles();
 }
 function markPunchHit() {
@@ -1991,6 +2183,8 @@ function fmtTime(sec) {
 
 function gameOver() {
   S.over = true; S.running = false;
+  stopMusic();
+  playSfx('gameOver', { volume: 0.9 });
   $('foScore').textContent = S.score;
   $('foKills').textContent = S.kills;
   $('foDist').textContent = Math.floor(S.distance);
@@ -2306,6 +2500,11 @@ function update(dt) {
   if (S.faceDepth > 0.05 && S._swayDir <= 0) { S.sway++; S._swayDir = 1; }
   else if (S.faceDepth < -0.05 && S._swayDir >= 0) { S.sway++; S._swayDir = -1; }
 
+  // 移动脚步音：主动横移/前后移动时低频脚步
+  if (S.running && (Math.abs(S.playerVX) > 1.2 || Math.abs(S.playerVZ) > 1.2)) {
+    if (S.time - lastStepAt > 0.42) { lastStepAt = S.time; sfxStep(); }
+  }
+
   // 主角障碍碰撞（不穿透）
   const px0 = S.playerX, pz0 = S.playerZ;
   const pp = resolveObstacle(S.playerX, S.playerZ, 0.5);
@@ -2517,6 +2716,18 @@ function update(dt) {
     }
   }
 
+  // 冲击波（大击退）：地面圆环快速扩散 + 淡出
+  for (const s of shockPool) {
+    if (s.life > 0) {
+      s.life -= dt;
+      const t = 1 - s.life / s.max;
+      const ease = 1 - Math.pow(1 - t, 2);
+      s.m.scale.setScalar(0.4 + ease * 6.5);
+      s.m.material.opacity = 0.9 * (1 - t);
+      if (s.life <= 0) s.m.visible = false;
+    }
+  }
+
   // 身法闪避检测（威胁→脱离 / 变向）
   updateEvade(dt);
 
@@ -2611,6 +2822,7 @@ function resetGame() {
   S.playerZ = 0; S.playerVZ = 0; S.faceTargetZ = 0; S.faceDepth = 0;
   S.gunCooldown = 0; S.keyVX = 0; S.keyVZ = 0; S.dodgeVX = 0; S.bodyDodge = 0;
   S.killStreak = 0; S.lastKillAt = -1e9; S.streakTier = -1;
+  S.knockCharge = 0; S.lastKnockAt = -1e9; S.lastKnockWeapon = '';   // 连击充能清零
   // 结算统计清零
   S.maxCombo = 0; S.formsUsed = new Set(); S.guardTime = 0;
   S.punches = 0; S.blades = 0; S.dodges = 0; S.shots = 0; S.sway = 0;
@@ -2625,6 +2837,7 @@ function resetGame() {
   vignette.style.opacity = '0';
   hud.style.display = 'block';
   overScr.style.display = 'none';
+  if (sfxReady) startMusic();   // 重开后恢复配乐
 }
 
 /* ============================================================
@@ -2699,6 +2912,7 @@ sensRange.addEventListener('input', () => {
 
 $('btnStart').addEventListener('click', async () => {
   ensureAudio();
+  loadSfx();   // 后台加载 CC0 音效采样，完成后自动起配乐
   $('btnStart').disabled = true;
   $('loading').style.display = 'flex';
   $('camStatus').textContent = '';
