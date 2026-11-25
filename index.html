@@ -64,6 +64,23 @@
   /* 全屏闪（熄灯/亡者诱饵等终极播报） */
   #flash{position:fixed;inset:0;pointer-events:none;z-index:30;background:radial-gradient(circle at 50% 45%, rgba(255,255,255,.85) 0%, rgba(255,255,255,.3) 55%, transparent 100%);opacity:0;}
 
+  /* 命中白闪（打击瞬间的视觉重音） */
+  #hitFlash{position:fixed;inset:0;pointer-events:none;z-index:29;opacity:0;background:radial-gradient(circle at 50% 52%, rgba(255,255,255,.92) 0%, rgba(255,225,205,.34) 45%, transparent 72%);}
+  /* 多杀冲击线（一次劈倒一群时炸开） */
+  #impactRays{position:fixed;inset:-40%;pointer-events:none;z-index:28;opacity:0;transform-origin:50% 50%;background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,.55) 0deg 1.5deg, transparent 1.5deg 9deg);mix-blend-mode:screen;}
+  #impactRays.on{animation:raysGo .55s cubic-bezier(.15,.9,.3,1) forwards;}
+  @keyframes raysGo{0%{opacity:.95;transform:rotate(-14deg) scale(.55);}100%{opacity:0;transform:rotate(46deg) scale(1.45);}}
+  /* 伤害数字 */
+  #dmgNums{position:fixed;inset:0;pointer-events:none;z-index:31;overflow:hidden;}
+  .dnum{position:absolute;font-weight:900;font-size:19px;color:#ffe6a3;text-shadow:0 2px 7px rgba(0,0,0,.92),0 0 13px rgba(255,120,40,.6);transform:translate(-50%,-50%);white-space:nowrap;}
+  .dnum.big{font-size:28px;color:#ffd60a;text-shadow:0 2px 9px #000,0 0 22px rgba(255,180,40,.95);}
+  .dnum.huge{font-size:38px;color:#ff8a3c;text-shadow:0 3px 11px #000,0 0 30px rgba(255,90,30,1);}
+  @keyframes dnumUp{0%{opacity:0;transform:translate(-50%,-50%) scale(.4);}16%{opacity:1;transform:translate(-50%,-68%) scale(1.22);}34%{opacity:1;transform:translate(-50%,-80%) scale(1);}100%{opacity:0;transform:translate(-50%,-200%) scale(.92);}}
+  /* 低血量红脉冲 */
+  #lowHp{position:fixed;inset:0;pointer-events:none;z-index:16;opacity:0;background:radial-gradient(ellipse at center,transparent 42%,rgba(190,16,8,.72) 100%);}
+  #lowHp.on{animation:lhp 1.15s ease-in-out infinite;}
+  @keyframes lhp{0%,100%{opacity:.22;}50%{opacity:.85;}}
+
   /* 击杀信息流 */
   #killfeed{position:absolute;top:14px;right:16px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;pointer-events:none;width:300px;}
   .kf{background:rgba(10,12,18,.72);border:1px solid var(--line);border-left:3px solid var(--accent2);border-radius:6px;padding:5px 11px;font-size:12px;color:#e8e8ea;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:0;transform:translateX(20px);animation:kfIn .22s forwards;}
@@ -104,9 +121,12 @@
   .note{font-size:11px;color:#6b7180;margin-top:18px;max-width:520px;line-height:1.6;}
   #camStatus{font-size:12px;color:#ffd60a;margin-top:14px;min-height:16px;letter-spacing:.05em;}
 
-  #loading{display:none;flex-direction:column;align-items:center;gap:16px;margin-top:20px;}
+  #loading{display:none;flex-direction:column;align-items:center;gap:16px;margin-top:0;}
   .spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
+  /* 全局启动/状态浮层（主菜单、选武器页、帮助页都能看到摄像头状态） */
+  #bootInfo{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:60;display:none;flex-direction:column;align-items:center;gap:10px;pointer-events:none;width:min(560px,92vw);}
+  #bootInfo.on{display:flex;}
 
   #gameover{display:none;overflow-y:auto;justify-content:flex-start;padding:5vh 24px 40px;}
   #gameover .final{font-size:13px;color:#9aa0ad;letter-spacing:.1em;}
@@ -137,6 +157,102 @@
   .ach.off{opacity:.35;filter:grayscale(.8);}
   .ach.new{border-color:var(--accent2);box-shadow:0 0 14px rgba(255,214,10,.22);}
   #achSummary{font-size:12px;color:#ffd60a;margin-top:10px;font-weight:700;letter-spacing:.02em;}
+
+  /* ---------- 主菜单 ---------- */
+  .menu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:15px;width:min(1020px,94vw);margin:26px 0 4px;}
+  .mcard{text-align:left;cursor:pointer;border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;background:linear-gradient(160deg,rgba(255,255,255,.075),rgba(255,255,255,.015));color:#e8e8ea;font-family:inherit;transition:transform .14s,border-color .14s,box-shadow .14s;}
+  .mcard:hover{transform:translateY(-3px);border-color:rgba(255,214,10,.5);box-shadow:0 16px 44px rgba(0,0,0,.55);}
+  .mcard .mi{font-size:32px;line-height:1;}
+  .mcard .mt{font-size:19px;font-weight:900;margin-top:9px;letter-spacing:.03em;}
+  .mcard .md{font-size:11.5px;color:#9aa0ad;margin-top:6px;line-height:1.65;}
+  .mcard.boss .mt{color:#ff5f4a;} .mcard.train .mt{color:#7ec8ff;} .mcard.help .mt{color:#ffd60a;}
+  button.ghost{background:transparent;border:1px solid var(--line);color:#b7bcc6;}
+  button.ghost:hover{border-color:rgba(255,214,10,.5);color:#fff;}
+  .backRow{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:18px;}
+  .backRow button.cta{margin-top:0;padding:13px 34px;font-size:15px;}
+
+  /* ---------- 帮助 ---------- */
+  #help{justify-content:flex-start;padding:4vh 20px 44px;overflow-y:auto;}
+  .htabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:20px 0 16px;}
+  .htab{padding:9px 20px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:#b7bcc6;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;}
+  .htab.on{background:linear-gradient(135deg,#ff5f4a,#d9230f);border-color:transparent;color:#fff;box-shadow:0 6px 22px rgba(255,59,48,.35);}
+  .hbody{width:min(1120px,96vw);text-align:left;}
+  .hcard{display:grid;grid-template-columns:230px 1fr;gap:18px;background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:11px;}
+  @media (max-width:780px){.hcard{grid-template-columns:1fr;}}
+  .hcard .hn{font-size:17px;font-weight:900;color:#fff;display:flex;align-items:center;gap:9px;}
+  .hcard .hn .hi{font-size:26px;}
+  .hcard .ht{font-size:11px;color:#8f96a3;letter-spacing:.1em;margin-top:4px;}
+  .hrow{display:flex;gap:8px;flex-wrap:wrap;margin:7px 0;}
+  .hchip{display:inline-block;margin:3px 5px 0 0;font-size:11.5px;background:rgba(255,214,10,.08);border:1px solid rgba(255,214,10,.22);color:#ffe8b0;padding:4px 9px;border-radius:7px;line-height:1.5;}
+  .hchip b{color:#ffd60a;}
+  .hchip.m{border-color:rgba(126,200,255,.25);background:rgba(126,200,255,.07);color:#cfe8ff;}
+  .hchip.m b{color:#7ec8ff;}
+  .hchip.d{border-color:rgba(255,95,74,.25);background:rgba(255,95,74,.07);color:#ffd0c8;}
+  .hchip.d b{color:#ff8a75;}
+  .hsec{font-size:11px;letter-spacing:.16em;color:#9aa0ad;margin:0 0 5px;text-transform:uppercase;}
+  .hp{font-size:12.5px;color:#b7bcc6;line-height:1.8;}
+  .hp b{color:#fff;}
+  .hnote{font-size:12px;color:#8f96a3;line-height:1.75;}
+  .hlist{list-style:none;font-size:12.5px;color:#b7bcc6;line-height:1.9;}
+  .hlist li{padding-left:16px;position:relative;}
+  .hlist li:before{content:'▸';position:absolute;left:0;color:var(--accent2);}
+  .hlist b{color:#fff;}
+
+  /* ---------- 武器选择 ---------- */
+  .wpick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px;width:min(1120px,96vw);margin:12px 0;}
+  .wpick{padding:12px 13px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:pointer;text-align:left;color:#e8e8ea;font-family:inherit;transition:all .14s;}
+  .wpick:hover{border-color:rgba(255,214,10,.45);background:rgba(255,255,255,.07);}
+  .wpick.on{border-color:var(--accent2);box-shadow:0 0 0 1px rgba(255,214,10,.35),0 8px 26px rgba(0,0,0,.45);background:rgba(255,214,10,.07);}
+  .wpick .wn{font-size:14px;font-weight:800;display:flex;align-items:center;gap:7px;}
+  .wpick .wi{font-size:20px;}
+  .wpick .wd{font-size:10.5px;color:#8f96a3;margin-top:5px;line-height:1.55;}
+  .wpick .lock{font-size:9.5px;color:#ff6b6b;margin-top:5px;}
+  .wdetail{width:min(1120px,96vw);margin:2px 0 0;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.04);text-align:left;}
+  .wdetail .wtitle{font-size:19px;font-weight:900;color:#fff;display:flex;align-items:center;gap:10px;}
+  .wdetail .wtitle .wi{font-size:28px;}
+  .wdetail .wcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:10px;}
+
+  /* ---------- BOSS 战 HUD ---------- */
+  #bossHud{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:min(660px,76vw);display:none;text-align:center;}
+  #bossName{font-size:11.5px;letter-spacing:.22em;color:#ff8a75;font-weight:900;text-shadow:0 2px 10px rgba(0,0,0,.9);}
+  #bossBar{position:relative;height:18px;margin-top:5px;background:rgba(0,0,0,.68);border:1px solid rgba(255,95,74,.55);border-radius:9px;overflow:hidden;}
+  #bossFill{height:100%;width:100%;background:linear-gradient(90deg,#ff8a3c,#ff2d2d 60%,#7a0a0a);transition:width .18s;}
+  #bossSeg{position:absolute;inset:0;pointer-events:none;}
+  #bossSeg i{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.6);}
+  #bossHint{font-size:10.5px;color:#ffb3a3;margin-top:5px;letter-spacing:.04em;}
+  #rageHud{position:absolute;left:16px;bottom:124px;width:min(310px,44vw);display:none;pointer-events:auto;}
+  #rageLabel{font-size:11px;color:#ffd60a;letter-spacing:.1em;margin-bottom:4px;font-weight:800;}
+  #rageBar{height:14px;background:rgba(0,0,0,.6);border:1px solid rgba(255,214,10,.45);border-radius:7px;overflow:hidden;}
+  #rageFill{height:100%;width:0%;background:linear-gradient(90deg,#ff8a3c,#ffd60a);transition:width .15s;}
+  #rageReady{display:none;font-size:12.5px;color:#fff;font-weight:900;margin-top:6px;text-shadow:0 0 14px rgba(255,214,10,.9);animation:guardPulse 1s ease-in-out infinite;}
+  #rageReady b{color:#ffd60a;}
+  #modeTag{position:absolute;top:14px;right:16px;font-size:11px;letter-spacing:.14em;color:#ffd60a;background:rgba(0,0,0,.45);border:1px solid rgba(255,214,10,.3);border-radius:999px;padding:4px 12px;display:none;}
+
+  /* ---------- 蓄力指示（战锤等）：常驻显示「蓄力中」+ 进度条 ---------- */
+  #chargeHud{position:absolute;left:50%;transform:translateX(-50%);bottom:150px;width:min(300px,60vw);display:none;text-align:center;pointer-events:none;}
+  #chargeHud.on{display:block;}
+  #chargeLabel{font-size:15px;font-weight:900;color:#ffd166;letter-spacing:.16em;text-shadow:0 0 18px rgba(255,209,102,.9),0 2px 6px #000;animation:guardPulse .9s ease-in-out infinite;}
+  #chargeBar{height:9px;margin-top:6px;background:rgba(0,0,0,.62);border:1px solid rgba(255,209,102,.5);border-radius:5px;overflow:hidden;}
+  #chargeFill{height:100%;width:0%;background:linear-gradient(90deg,#ff8a3c,#ffd166);box-shadow:0 0 12px rgba(255,209,102,.8);}
+
+  /* ---------- 抱胸武器转盘 ---------- */
+  #wheel{position:fixed;inset:0;z-index:46;display:none;pointer-events:none;}
+  #wheel.on{display:block;background:linear-gradient(180deg,rgba(6,8,14,.18),rgba(6,8,14,.62));}
+  #wheelTrack{position:absolute;inset:0;overflow:hidden;}
+  #wheelRow{position:absolute;left:50%;bottom:120px;display:flex;gap:14px;transform:translateX(-50%);transition:transform .16s ease-out;}
+  .wslot{flex:0 0 auto;width:88px;height:88px;border-radius:14px;border:1px solid var(--line);background:rgba(10,12,18,.74);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:.4;pointer-events:auto;cursor:pointer;}
+  .wslot .wi{font-size:28px;}
+  .wslot .wn{font-size:10.5px;color:#b7bcc6;text-align:center;}
+  .wslot.on{opacity:1;border-color:var(--accent2);background:rgba(255,214,10,.16);box-shadow:0 0 30px rgba(255,214,10,.45);}
+  .wslot.on .wn{color:#ffd60a;font-weight:800;}
+  #wheelTitle{position:absolute;left:50%;bottom:246px;transform:translateX(-50%);font-size:22px;font-weight:900;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.9);white-space:nowrap;}
+  #wheelTitle span{color:var(--accent2);}
+  #wheelHint{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);font-size:12.5px;color:#ffd60a;background:rgba(10,12,18,.8);border:1px solid rgba(255,214,10,.35);border-radius:999px;padding:9px 22px;white-space:nowrap;}
+
+  /* ---------- 狂暴时刻 ---------- */
+  #berserk{position:fixed;inset:0;z-index:19;pointer-events:none;opacity:0;transition:opacity .22s;background:radial-gradient(ellipse at center,transparent 42%,rgba(255,70,20,.5) 100%);}
+  #berserk.on{opacity:1;}
+  #berserkTxt{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);font-size:clamp(30px,6vw,56px);font-weight:900;color:#fff;text-shadow:0 0 44px rgba(255,90,20,.95),0 4px 18px rgba(0,0,0,.85);letter-spacing:.08em;text-align:center;}
 </style>
 <script type="importmap">
 {
@@ -151,7 +267,24 @@
 <body>
 <canvas id="gl"></canvas>
 <div id="damageVignette"></div>
+<div id="lowHp"></div>
+<div id="hitFlash"></div>
+<div id="impactRays"></div>
+<div id="dmgNums"></div>
 <div id="flash"></div>
+<div id="berserk"><div id="berserkTxt"></div></div>
+
+<div id="wheel">
+  <div id="wheelTrack"><div id="wheelRow"></div></div>
+  <div id="wheelTitle"></div>
+  <div id="wheelHint">🫂 抱胸选择中 · 身体左右移动滑动转盘 · 向前推手确认 · 张开手臂取消</div>
+</div>
+
+<!-- 全局启动状态浮层（摄像头授权 / 姿态模型加载进度） -->
+<div id="bootInfo">
+  <div id="camStatus"></div>
+  <div id="loading"><div class="spinner"></div><div>正在加载 3D 场景与姿态识别模型…</div></div>
+</div>
 
 <div id="hud">
   <div id="topbar">
@@ -165,11 +298,26 @@
       <div class="stat" id="waveTag">难度 Lv.1</div>
     </div>
     <div class="statrow" style="margin-top:2px;">
-      <div class="stat"><b id="weaponLabel">拳头</b><span>1-4 换武器 · 3 需通关第3波</span></div>
+      <div class="stat"><b id="weaponLabel">拳头</b><span>1~0/- 换武器 · 需通关对应波次解锁</span></div>
       <div class="stat"><b id="phoneBadge" style="font-size:12px;color:#ff6b6b;">手机未连接</b></div>
     </div>
   </div>
   <div id="combo"><div id="comboCount">×3</div><div id="comboName">连击</div></div>
+  <div id="modeTag"></div>
+  <div id="bossHud">
+    <div id="bossName">缝合巨兽 · 尸潮主宰</div>
+    <div id="bossBar"><div id="bossFill"></div><div id="bossSeg"></div></div>
+    <div id="bossHint"></div>
+  </div>
+  <div id="rageHud">
+    <div id="rageLabel">🔥 狂怒条</div>
+    <div id="rageBar"><div id="rageFill"></div></div>
+    <div id="rageReady">狂怒已满 · 按 <b>F</b> 开启狂暴时刻</div>
+  </div>
+  <div id="chargeHud">
+    <div id="chargeLabel">蓄力中</div>
+    <div id="chargeBar"><div id="chargeFill"></div></div>
+  </div>
   <div id="announce"></div>
   <div id="toast"><div class="box"><div class="tt" id="toastTitle"></div><div class="ts" id="toastSub"></div></div></div>
   <div id="streak"><div class="zh"></div><div class="en"></div></div>
@@ -182,32 +330,88 @@
     <div id="gestureTag">等待姿态…</div>
     <div id="diag">相机 未开启 | 模型 未加载</div>
   </div>
-  <div id="hint">出拳：向镜头快速出拳 · 防御：双臂胸前交叉(减伤80%)<br/>武士刀(通关第3波解锁)：双手握拳靠拢后快速挥动 — 斜向挥=斜劈 / 竖向挥=竖砍 / 向前捅=捅刺<br/>前后：脸靠近=前进 / 脸远离=后退 · 键盘：空格/J 攻击 · Z/X/C 直选斜劈/竖砍/捅刺 · A/D 横移 · W/S 前后</div>
+  <div id="hint">出拳：向镜头快速出拳 · 防御：双臂胸前交叉(减伤80%) · 抱胸：双手在胸前合拢 → 弹出武器转盘，左右移动身体滑动选武器，出拳确认<br/>武士刀/长棍：双手握拳靠拢后挥动 — 斜挥/竖挥/前捅 · 双枪：像摇手机一样上下摇小臂(左右手都能打，可同时双发)<br/>战锤：右臂抬高开始蓄力(屏幕显示蓄力中) → 挥落/抡出 · 鞭子：手臂往前甩一次 · 弓箭：任一只手扯线→送出去完成一个来回射一箭 · 流星锤：伸臂绕肩转一圈<br/>键盘：空格/J 攻击(战锤长按松开蓄力) · 1~0/- 切换武器 · A/D 横移 · W/S 前后 · E 武器转盘 · F 狂暴时刻(BOSS战)</div>
 </div>
 
-<div class="screen" id="start">
+<div class="screen" id="menu">
   <h1>尸潮突击</h1>
-  <div class="sub">Zombie Onslaught</div>
-  <p>第三人称越肩视角：主角<b style="color:#ffd60a">向前推进</b>，遭遇丧尸后进入<b style="color:#ffd60a">遭遇战</b>（1v1 或 1v多），清场后继续前进。打开摄像头，用你的<b style="color:#ffd60a">真实动作</b>出拳，并连出<b style="color:#ffd60a">连招</b>打出更高伤害。</p>
-  <div class="keys">
-    <span class="key"><b>出拳</b> 快速出拳</span>
-    <span class="key">连招 <b>双拳 / 疯狂连击 / 重拳终结</b></span>
-    <span class="key"><b>武士刀</b> 通关第3波解锁 · 双手握拳靠拢：斜挥=斜劈 / 竖挥=竖砍 / 前伸=捅刺</span>
+  <div class="sub">Zombie Onslaught · 体感丧尸射击</div>
+  <div class="menu-grid">
+    <button class="mcard" id="mCampaign">
+      <div class="mi">🏃</div>
+      <div class="mt">闯关模式</div>
+      <div class="md">一路向前推进，清场解锁 9 把武器。杂兵成群、精英偶尔出没。</div>
+    </button>
+    <button class="mcard boss" id="mBoss">
+      <div class="mi">👹</div>
+      <div class="mt">BOSS 战</div>
+      <div class="md">超厚血缝合巨兽。会召唤小兵、发射飞行冲击波。靠狂怒值开启狂暴时刻破局。</div>
+    </button>
+    <button class="mcard train" id="mTrain">
+      <div class="mi">🎯</div>
+      <div class="mt">单项训练</div>
+      <div class="md">只带一把武器反复练习。看清招式数值、动捕动作和锻炼的肌肉群。</div>
+    </button>
+    <button class="mcard help" id="mHelp">
+      <div class="mi">📖</div>
+      <div class="mt">帮助</div>
+      <div class="md">分类查阅：武器数值 · 动捕动作 · 肌肉群 · 僵尸机制。</div>
+    </button>
   </div>
   <div class="sens"><span>体感灵敏度</span><input type="range" id="sensRange" min="0.5" max="3.0" step="0.1" value="1.0"><b id="sensVal">1.0x</b></div>
   <div class="note">提示：摄像头动作识别建议在光线充足、镜头能看到全身或半身时使用；不授权摄像头也可用键盘畅玩。</div>
-  <button class="cta" id="btnStart">开始游戏</button>
-  <div id="camStatus"></div>
-  <div id="loading"><div class="spinner"></div><div>正在加载 3D 场景与姿态识别模型…</div></div>
+</div>
+
+<!-- BOSS 战选武器 -->
+<div class="screen" id="bossPick">
+  <h1>选择入场武器</h1>
+  <div class="sub">BOSS BATTLE · 装备</div>
+  <p>BOSS 战里所有武器均可使用，战斗中也能随时切换（抱胸手势 → 武器转盘）。选一把你顺手的。</p>
+  <div class="wpick-grid" id="bossWpnGrid"></div>
+  <div class="wdetail" id="bossWpnDetail"></div>
+  <div class="backRow">
+    <button class="cta" id="btnBossGo">进入 BOSS 战</button>
+    <button class="cta ghost" id="btnBossBack">返回</button>
+  </div>
+</div>
+
+<!-- 单项训练 -->
+<div class="screen" id="trainPick">
+  <h1>单项训练</h1>
+  <div class="sub">WEAPON DRILL · 选一把武器</div>
+  <p>点下方任意武器查看它的<b style="color:#ffd60a">特性数值 · 动捕动作 · 锻炼肌肉</b>，然后点击「进入训练」——只用这一把武器闯关。</p>
+  <div class="wpick-grid" id="trainWpnGrid"></div>
+  <div class="wdetail" id="trainWpnDetail"></div>
+  <div class="backRow">
+    <button class="cta" id="btnTrainGo">进入训练</button>
+    <button class="cta ghost" id="btnTrainBack">返回</button>
+  </div>
+</div>
+
+<!-- 帮助 -->
+<div class="screen" id="help">
+  <h1>帮助</h1>
+  <div class="sub">HELP · 分类查阅</div>
+  <div class="htabs" id="helpTabs">
+    <button class="htab on" data-tab="weapons">武器</button>
+    <button class="htab" data-tab="mech">数值机制</button>
+    <button class="htab" data-tab="moves">动捕动作</button>
+    <button class="htab" data-tab="muscle">肌肉群</button>
+    <button class="htab" data-tab="zombies">僵尸机制</button>
+    <button class="htab" data-tab="boss">BOSS 战</button>
+    <button class="htab" data-tab="modes">游戏模式</button>
+  </div>
+  <div class="hbody" id="helpBody"></div>
+  <div class="backRow"><button class="cta" id="btnHelpBack">返回菜单</button></div>
 </div>
 
 <div class="screen" id="gameover">
-  <div class="final">阵亡 · YOU DIED</div>
-  <div class="big">突围失败</div>
+  <div class="final" id="goFinal">阵亡 · YOU DIED</div>
+  <div class="big" id="goBig">突围失败</div>
   <div class="grid">
     <div><b id="foScore">0</b>得分</div>
     <div><b id="foKills">0</b>击杀</div>
-    <div><b id="foDist">0</b>米</div>
+    <div><b id="foDist">0</b><span id="foDistLabel">米</span></div>
   </div>
   <div id="goPanel">
     <div class="go-sec">
@@ -232,7 +436,10 @@
       <div id="achSummary"></div>
     </div>
   </div>
-  <button class="cta" id="btnRestart">再来一次</button>
+  <div class="backRow">
+    <button class="cta" id="btnRestart">再来一次</button>
+    <button class="cta ghost" id="btnGameOverMenu">返回主菜单</button>
+  </div>
 </div>
 
 <script type="module">
@@ -250,7 +457,7 @@ const S = {
   running: false,
   over: false,
   health: 100,
-  maxHealth: 100,
+  maxHealth: 66,
   score: 0,
   kills: 0,
   distance: 0,
@@ -267,8 +474,11 @@ const S = {
   attack: null,           // 当前攻击 {type, t, dur}
   attackQueue: [],
   shake: 0,
+  shakeX: 0,          // 方向性震屏（水平）
+  shakeY: 0,          // 方向性震屏（垂直）
   hitFlash: 0,
   lastDamagedAt: -1e9,     // 最近受伤时间（用于脱战回血）
+  hurtCd: 0,               // 受伤无敌帧剩余时间（被围时不至于瞬间融化）
   defending: false,        // 双臂交叉防御姿态（减伤 80%）
   guardHold: 0,            // 防御手势保持时间（防抖）
   phase: 'walk',           // walk | combat | clear
@@ -284,6 +494,7 @@ const S = {
   killStreak: 0,          // 连杀计数
   lastKillAt: -1e9,       // 最近击杀时间
   streakTier: -1,         // 已展示的连杀播报等级
+  _lowShown: false,       // 残血提示已触发（血量掉到 30% 以下时弹一次）
   // 结算统计：成就 / 热量
   maxCombo: 0,            // 本局最大拳击连击
   formsUsed: new Set(),   // 本局用过的武士刀招式
@@ -292,8 +503,12 @@ const S = {
   sway: 0,                 // 身体前后移动次数（脸靠近/远离，热量估算）
   // 武器 / 手机联动
   weapon: 'fist',
-  katanaUnlocked: false,  // 通关第 3 波后解锁武士刀
-  katanaForm: 0,          // 键盘攻击时三式轮流：0斜劈 1竖砍 2捅刺
+  unlocked: new Set(['fist', 'gun']),  // 已解锁武器（拳/双枪初始可用）
+  weaponForm: 0,          // 多招式武器键盘攻击时轮流用哪一式
+  gunHand: 'R',           // 双枪下一枪由哪只手打出（左右交替）
+  charging: false,        // 蓄力武器（战锤/弓箭/流星锤）是否在蓄力
+  chargeStart: 0,         // 蓄力开始时间
+  chargeWeapon: '',       // 正在蓄力的武器
   seenWeapons: new Set(), // 本局已弹过大提示的武器（首次切换弹特性提示）
   seenArchs: new Set(),   // 本局已登场提示过的丧尸品类（首次出现弹特性提示）
   keyVX: 0,               // 键盘横移速度
@@ -304,12 +519,69 @@ const S = {
   phoneConnected: false,
   phoneActive: false,     // 手机传感器已激活
   gunCooldown: 0,
+  bowCooldown: 0,
+  // 游戏模式：campaign 闯关 | boss BOSS战 | train 单项训练
+  mode: 'campaign',
+  trainWeapon: null,     // 单项训练锁定武器
+  startWeapon: 'fist',   // 本局入场武器（BOSS 战 / 训练 自选）
+  bossPick: 'fist',      // BOSS 战选武器页当前选择
+  trainPick: 'fist',     // 单项训练选武器页当前选择
+  // 抱胸武器选择（BOSS战 / 通用）
+  selectMode: false,     // 是否处于武器选择状态
+  selectT: 0,            // 选择状态已持续时间
+  selectIdx: 0,          // 转盘当前选中武器索引
+  selectHold: 0,         // 抱胸保持计时
+  selectCancel: 0,       // 张开手臂取消计时
+  selectManual: false,   // 键盘进入选择态（不靠抱胸维持）
+  selectFrom: 0,         // 转盘起始横向位置（用于滑动增量）
+  wheelScroll: 0,        // 转盘滑动量（浮点索引）
+  wheelAccum: 0,         // 本帧手势横向位移累积（滑动转盘用）
+  bodySlide: 0,          // 本帧肩中点横向位移（肩宽单位）
+  hugRelX: 0,            // 交叉手臂中点相对躯干中心的横向偏移
+  hugRelBase: 0,         // 进入选择状态时的基准偏移
+  hugArmed: false,       // 当前是否摆出抱胸姿势
   // 体感
   camOK: false,
   poseOK: false,
   gesture: '等待姿态…',
   sensitivity: 1.0,
 };
+
+/* ============================================================
+   BOSS 战状态
+============================================================ */
+const BOSS = {
+  active: false,
+  hp: 0, maxHp: 0,
+  group: null,           // THREE.Group
+  body: null,            // humanoid
+  mats: null,
+  x: 0, z: -12,
+  scale: 3.4,
+  // 行为状态机
+  phase: 'idle',         // idle | summon | slam | roar
+  phaseT: 0,
+  nextAction: 0,         // 距下次动作的倒计时
+  actionCount: 0,        // 已出招次数（随进度提升）
+  // 召唤小兵
+  summonCd: 0,
+  summonedTotal: 0,
+  // 飞行冲击波
+  waves: [],             // {mesh, x, z, v, dmg, r}
+  waveCd: 0,
+  // 狂怒 / 狂暴
+  rage: 0, rageMax: 100,
+  berserk: 0,            // 狂暴剩余秒数
+  berserkCount: 0,       // 已用狂暴次数
+  berserkMax: 10,        // 需要约 10 次狂暴才能打死
+  berserkWindow: 10,     // 每次狂暴 10 秒
+  bossDamageTaken: 0,
+  // 难度随进度提升
+  progress: 0,           // 0~1，已造成的 BOSS 伤害占比
+  // 阶段台词
+  sayCd: 0,
+};
+const BOSS_SEGMENTS = 10;   // 血条分段（10 段 = 约 10 次狂暴）
 
 const ROAD_HALF = 5.0;   // 可横移范围
 const Z_FORWARD = -1;    // 主角朝向 -Z
@@ -320,7 +592,7 @@ const ENCOUNTER_GAP = 24;     // 后续每波之间的前进距离（米）
    DOM
 ============================================================ */
 const $ = id => document.getElementById(id);
-const hud = $('hud'), startScr = $('start'), overScr = $('gameover');
+const hud = $('hud'), startScr = $('menu'), overScr = $('gameover');
 const hpfill = $('hpfill'), elScore = $('score'), elKills = $('kills'), elDist = $('dist');
 const elCombo = $('combo'), elComboCount = $('comboCount'), elComboName = $('comboName');
 const elAnnounce = $('announce'), vignette = $('damageVignette');
@@ -429,6 +701,7 @@ const MAT = {
   blood: new THREE.MeshBasicMaterial({ color: 0x8e0f0f }),
 };
 const HIT_RED = new THREE.Color(0xff2d2d);   // 受击闪红颜色
+const HIT_WHITE = new THREE.Color(0xffffff);  // 受击闪白颜色（瞬间爆亮）
 
 /* ============================================================
    通用人体构建（关节层级）
@@ -503,20 +776,83 @@ scene.add(player.root);
 // 主角武器模型（挂在右手，随手臂动画一起动）
 const weaponGroup = new THREE.Group();
 player.armR.hand.add(weaponGroup);
+const weaponGroupL = new THREE.Group();   // 左手武器组（双枪等双手武器用）
+player.armL.hand.add(weaponGroupL);
+// 武器附加材质
+const MATW = {
+  wood: new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.8 }),
+  woodDark: new THREE.MeshStandardMaterial({ color: 0x5e3d1e, roughness: 0.85 }),
+  leather: new THREE.MeshStandardMaterial({ color: 0x4a3226, roughness: 0.9 }),
+  gold: new THREE.MeshStandardMaterial({ color: 0xd9b23a, roughness: 0.4, metalness: 0.6 }),
+};
+
 function setWeaponModel(type) {
   while (weaponGroup.children.length) weaponGroup.remove(weaponGroup.children[0]);
+  while (weaponGroupL.children.length) weaponGroupL.remove(weaponGroupL.children[0]);
   let m = null;
-  if (type === 'knife') {
-    m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.32, 0.05), MAT.metal);
-    m.position.y = -0.2;
-  } else if (type === 'katana') {
+  if (type === 'katana') {
     m = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.9, 0.06), MAT.metal);
     m.position.y = -0.48;
     const guard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.04), MAT.dark);
     guard.position.y = -0.05; m.add(guard);
   } else if (type === 'gun') {
-    m = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.32, 0.11), MAT.dark);
-    m.position.y = -0.22;
+    // 双枪：左右手各一把
+    const mkGun = () => {
+      const g = new THREE.Group();
+      const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.30, 0.11), MAT.dark);
+      barrel.position.y = -0.22; g.add(barrel);
+      const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.07), MAT.metal);
+      grip.position.y = -0.03; g.add(grip);
+      const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), MAT.metal);
+      muzzle.position.y = -0.38; g.add(muzzle);
+      g.castShadow = true;
+      return g;
+    };
+    const gr = mkGun(); weaponGroup.add(gr);
+    const gl = mkGun(); weaponGroupL.add(gl);
+    return;   // 双枪模型已分别挂到左右手，无需公共武器组
+  } else if (type === 'staff') {
+    // 长棍：细长木棍
+    m = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.5, 10), MATW.wood);
+    m.position.y = -0.8;
+  } else if (type === 'hammer') {
+    // 单手战锤：短柄 + 大锤头
+    m = new THREE.Group();
+    const hh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.7, 8), MATW.woodDark);
+    hh.position.y = -0.35; m.add(hh);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.18), MAT.metal);
+    head.position.y = -0.05; m.add(head);
+  } else if (type === 'daggers') {
+    // 双匕首：两把小刀
+    m = new THREE.Group();
+    const d1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.04), MAT.metal);
+    d1.position.set(0.08, -0.18, 0); m.add(d1);
+    const d2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.04), MAT.metal);
+    d2.position.set(-0.08, -0.18, 0); m.add(d2);
+  } else if (type === 'whip') {
+    // 鞭子：细长皮鞭
+    m = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.045, 1.1, 8), MATW.leather);
+    m.position.y = -0.55;
+  } else if (type === 'bow') {
+    // 弓箭：弯曲弓身 + 弓弦
+    m = new THREE.Group();
+    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.025, 8, 16, Math.PI), MATW.wood);
+    bow.rotation.y = Math.PI / 2; bow.position.y = -0.05; m.add(bow);
+    const str = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.8, 6), new THREE.MeshBasicMaterial({ color: 0xd8d8d8 }));
+    str.rotation.x = Math.PI / 2; str.position.y = -0.05; m.add(str);
+  } else if (type === 'flail') {
+    // 流星锤：锁链 + 带刺圆球
+    m = new THREE.Group();
+    const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), MAT.metal);
+    chain.position.y = -0.25; m.add(chain);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), MAT.metal);
+    ball.position.y = -0.55; m.add(ball);
+    for (let i = 0; i < 8; i++) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.09, 6), MAT.metal);
+      const a = i / 8 * Math.PI * 2, el = Math.PI / 3;
+      spike.position.set(Math.cos(a) * Math.sin(el) * 0.13, -0.55 + Math.cos(el) * 0.13, Math.sin(a) * Math.sin(el) * 0.13);
+      spike.lookAt(0, -0.55, 0); m.add(spike);
+    }
   }
   if (m) { m.castShadow = true; weaponGroup.add(m); }
 }
@@ -526,13 +862,22 @@ setWeaponModel('fist');
    丧尸（多种）
 ============================================================ */
 const ARCHETYPES = {
-  walker:  { hp: 40, speed: 1.7,  scale: 1.0,  score: 100, color: 0, dmg: 12 },   // 普通丧尸（血量-1/3）
-  runner:  { hp: 38, speed: 3.4,  scale: 0.88, score: 150, color: 1, dmg: 8 },
-  brute:   { hp: 160, speed: 1.15, scale: 1.35, score: 300, color: 2, dmg: 22 },
-  crawler: { hp: 26, speed: 4.4,  scale: 0.62, score: 130, color: 3, dmg: 6 },    // 爬行者：低矮极快
-  hunter:  { hp: 55, speed: 2.6,  scale: 1.05, score: 220, color: 4, dmg: 16 },   // 猎杀者：中速重击
-  titan:   { hp: 280, speed: 0.95, scale: 1.6,  score: 500, color: 5, dmg: 30 },  // 巨无霸：超肉慢速
+  // hp 为第 1 波的基础血量；elite 决定用哪条成长曲线
+  //   杂兵（elite:false）：血量几乎不成长 → 后期用高级武器仍能一刀/两刀清掉，配合「一波十几二十只」出割草爽感
+  //   精英（elite:true ）：血量陡增 → 后期偶尔出现一两只「难打的」，撑住挑战性
+  walker:  { hp: 100, elite: false, speed: 1.7,  scale: 1.0,  score: 100, color: 0, dmg: 12 },  // 普通丧尸（前期要 2~3 拳）
+  runner:  { hp: 85,  elite: false, speed: 3.4,  scale: 0.88, score: 150, color: 1, dmg: 8 },
+  crawler: { hp: 65,  elite: false, speed: 4.4,  scale: 0.62, score: 130, color: 3, dmg: 6 },    // 爬行者：低矮极快
+  hunter:  { hp: 130, elite: false, speed: 2.6,  scale: 1.05, score: 220, color: 4, dmg: 16 },   // 猎杀者：中速重击
+  brute:   { hp: 180, elite: true,  speed: 1.15, scale: 1.35, score: 300, color: 2, dmg: 22 },   // 坦克丧尸（精英）
+  titan:   { hp: 270, elite: true,  speed: 0.95, scale: 1.6,  score: 500, color: 5, dmg: 30 },   // 巨无霸（精英）
 };
+// 血量/伤害成长曲线
+const HP_GROW_TRASH = 0.018;  // 杂兵每波 +1.8% 血量（几乎不涨 → 后期依然好清）
+const HP_GROW_ELITE = 0.05;   // 精英每波 +5% 血量（后期依然是硬骨头，但不至于打不动）
+const DMG_GROW = 0.05;        // 丧尸对玩家的伤害成长
+const SPD_GROW = 0.03;        // 移速成长
+
 // 各丧尸品类外貌：衣服/裤子/发光眼睛颜色（用于差异化外观）
 const ZOMBIE_LOOK = {
   walker:  { shirt: 0x3a3d38, pants: 0x2b2d33, eyes: 0x000000 },
@@ -544,12 +889,12 @@ const ZOMBIE_LOOK = {
 };
 // 新丧尸登场大提示文案（名称 + 特性）
 const ZOMBIE_INTRO = {
-  walker:  { name: '普通丧尸', trait: '行动缓慢 · 成群出没，任意攻击都能解决' },
+  walker:  { name: '普通丧尸', trait: '行动缓慢 · 成群出没，需要 2~3 下才能放倒' },
   runner:  { name: '疾速丧尸', trait: '速度快但血薄 · 会迅速扑来，注意别被近身' },
-  brute:   { name: '坦克丧尸', trait: '皮糙肉厚 · 竖砍对其伤害更高（破甲）' },
+  brute:   { name: '坦克丧尸', trait: '皮糙肉厚 · 精英级，血量远高于杂兵，竖砍/战锤破甲更有效' },
   crawler: { name: '爬行者',   trait: '低矮贴地极快 · 横扫难命中，瞄准下盘' },
   hunter:  { name: '猎杀者',   trait: '中速高攻 · 会扑咬，优先闪避拉开距离' },
-  titan:   { name: '巨无霸',   trait: '超肉慢速 · 竖砍破甲，别硬拼正面' },
+  titan:   { name: '巨无霸',   trait: '超肉慢速 · 精英级，竖砍破甲，别硬拼正面' },
 };
 
 // 为丧尸加差异化装饰件（连帽/肩甲/利爪/胸甲/发光眼睛），返回 { arch: [Mesh...] }，通过 visible 切换。
@@ -645,8 +990,8 @@ function spawnZombie(arch, x, z) {
     scene.add(bar.g);
     const decos = buildZombieDecos(h);
     zz = { h, bar, skinMat, shirtMat, pantsMat, decos,
-           baseSkin: new THREE.Color(), baseShirt: new THREE.Color(), basePants: new THREE.Color(), hitFlash: 0,
-           scale: 1, hp: 60, maxHp: 60, speed: 1.7, score: 100, dmg: 10, alive: true,
+           baseSkin: new THREE.Color(), baseShirt: new THREE.Color(), basePants: new THREE.Color(), hitFlash: 0, hitWhite: 0, spin: 0,
+           scale: 1, hp: 60, maxHp: 60, speed: 1.7, score: 100, dmg: 10, alive: true, atkCd: 0.6,
            state: 'walk', t: Math.random() * 10, stagger: 0, death: 0, x: 0, z: 0, vx: 0, vz: 0, r: 0.5, arch: 'walker' };
     scene.add(zz.h.root);
   }
@@ -660,6 +1005,8 @@ function spawnZombie(arch, x, z) {
   zz.shirtMat.color.copy(zz.baseShirt);
   zz.pantsMat.color.copy(zz.basePants);
   zz.hitFlash = 0;
+  zz.hitWhite = 0;
+  zz.spin = 0;
   // 复位身体部件缩放（复用池里的丧尸可能残留上一品类的体型）
   const h = zz.h;
   h.armL.sh.scale.setScalar(1); h.armR.sh.scale.setScalar(1);
@@ -678,12 +1025,15 @@ function spawnZombie(arch, x, z) {
   setZombieDecos(zz, arch);
   zz.scale = a.scale * (0.92 + Math.random() * 0.16);
   zz.r = 0.5 * a.scale;   // 碰撞半径随体型
-  const dScale = 1 + S.encounterIndex * 0.16;
+  // 血量：杂兵成长平缓（后期好打、堆数量出爽感），精英成长陡峭（偶尔来一只硬的）
+  const growth = a.elite ? HP_GROW_ELITE : HP_GROW_TRASH;
+  const dScale = 1 + S.encounterIndex * growth;
   zz.hp = a.hp * dScale; zz.maxHp = a.hp * dScale;
-  zz.speed = a.speed * (0.9 + Math.random() * 0.2) * (1 + S.encounterIndex * 0.05);
-  zz.score = a.score; zz.dmg = a.dmg * (1 + S.encounterIndex * 0.1);
+  zz.speed = a.speed * (0.9 + Math.random() * 0.2) * (1 + S.encounterIndex * SPD_GROW);
+  zz.score = a.score; zz.dmg = a.dmg * (1 + S.encounterIndex * DMG_GROW);
   zz.h.root.scale.setScalar(zz.scale);
   zz.alive = true; zz.state = 'walk'; zz.stagger = 0; zz.death = 0;
+  zz.atkCd = 0.6 + Math.random() * 0.8;
   zz.x = x; zz.z = z; zz.vx = 0; zz.vz = 0;
   zz.h.root.position.set(x, 0, z);
   zz.h.root.rotation.set(0, Math.PI, 0);  // 面向镜头方向（+Z），即朝玩家
@@ -808,8 +1158,11 @@ for (let i = 0; i < BLOOD_N; i++) {
   m.visible = false; scene.add(m);
   bloods.push({ m, vx: 0, vy: 0, vz: 0, life: 0 });
 }
-function burstBlood(p, n) {
+function burstBlood(p, n, dx, dz) {
   let c = 0;
+  const hasDir = (dx || dz) && (dx !== 0 || dz !== 0);
+  const l = hasDir ? (Math.hypot(dx, dz) || 1) : 1;
+  const nx = hasDir ? dx / l : 0, nz = hasDir ? dz / l : 0;
   for (const b of bloods) {
     if (b.life <= 0 && c < n) {
       b.m.visible = true;
@@ -819,6 +1172,7 @@ function burstBlood(p, n) {
       b.vx = Math.cos(a) * sp * (0.4 + r);
       b.vy = 2 + Math.random() * 4;
       b.vz = Math.sin(a) * sp * (0.4 + r) - 1;
+      if (hasDir) { b.vx += nx * 6.5; b.vz += nz * 6.5; b.vy += 1.4; }
       b.life = 0.5 + Math.random() * 0.5;
       c++;
     }
@@ -847,10 +1201,19 @@ const FX_CFG = {
   double:        { color: 0xaee6ff, life: 0.18, start: 0.55, rz: 0,    vz: -4 },
   flurry:        { color: 0xaee6ff, life: 0.16, start: 0.5,  rz: 0.2,  vz: -4 },
   haymaker:      { color: 0xffd166, life: 0.24, start: 0.55, rz: 0.35, vz: -3 },
-  knife:         { color: 0xcfe8ff, life: 0.16, start: 0.45, rz: 0,    vz: -5 },
+  gun:          { color: 0xffe08a, life: 0.12, start: 0.5,  rz: 0,    vz: -6 },
   katana_slash:  { color: 0x8fe3ff, life: 0.24, start: 0.5,  rz: 0.7,  vz: -1.5, flip: true },
   katana_chop:   { color: 0xffd166, life: 0.26, start: 0.55, rz: 1.57, vz: -1 },
   katana_thrust: { color: 0xff9de2, life: 0.18, start: 0.4,  rz: 0,    vz: -6 },
+  staff_sweep:   { color: 0x8fe3ff, life: 0.26, start: 0.6,  rz: 0.6,  vz: -1.5, flip: true },
+  staff_smash:   { color: 0xffd166, life: 0.28, start: 0.6,  rz: 1.57, vz: -1 },
+  staff_poke:    { color: 0xff9de2, life: 0.18, start: 0.45, rz: 0,    vz: -6 },
+  hammer_smash:  { color: 0xffd166, life: 0.3,  start: 0.65, rz: 1.57, vz: -1 },
+  hammer_swing:  { color: 0xffb066, life: 0.28, start: 0.62, rz: 0.55, vz: -1.5, flip: true },
+  daggers_flurry:{ color: 0xcfe8ff, life: 0.14, start: 0.42, rz: 0.3,  vz: -4 },
+  daggers_twin:  { color: 0xff9de2, life: 0.16, start: 0.4,  rz: 0,    vz: -6 },
+  whip_crack:    { color: 0xffd166, life: 0.2,  start: 0.55, rz: 0.4,  vz: -7 },
+  flail:         { color: 0xffd166, life: 0.3,  start: 0.7,  rz: 0.8,  vz: -2 },
 };
 function spawnSlashFx(kind, dir) {
   const cfg = FX_CFG[kind];
@@ -908,6 +1271,177 @@ function spawnShockwave() {
 }
 
 /* ============================================================
+   打击感系统（Juice）
+   顿帧 / 慢动作 / 方向震屏 / 镜头推拉 / 伤害数字 / 碎肉 / 地面血迹 / 冲击环
+============================================================ */
+const JUICE = {
+  scale: 1,          // 当前时间缩放（顿帧/慢动作）
+  hitStop: 0,        // 顿帧剩余时间（秒）
+  slow: 0,           // 慢动作剩余时间
+  slowTarget: 1,     // 慢动作目标倍率
+  fov: 62,           // 当前 FOV（推拉镜头）
+  fovTarget: 62,     // FOV 目标
+  flash: 0,          // 命中白闪强度
+  rays: 0,           // 冲击线强度
+};
+const FOV_BASE = 62;
+const _projV = new THREE.Vector3();
+
+// —— 时间缩放：顿帧（几乎定格）优先于慢动作 ——
+// 注意：顿帧原本把时间缩放到 0.035 倍，画面会「卡住」一瞬，手感上表现为明显的掉帧感。
+// 现在改成「顿感」而非「定格」：最低只压到 0.62 倍，持续时间也大幅缩短，
+// 这样打击的重量感还在，但不会让玩家觉得卡。
+function timeTick(realDt) {
+  if (JUICE.hitStop > 0) {
+    JUICE.hitStop -= realDt;
+    return realDt * 0.62;                        // 顿感：轻微减速，不是定格
+  }
+  if (JUICE.slow > 0) {
+    JUICE.slow -= realDt;
+    JUICE.scale += (JUICE.slowTarget - JUICE.scale) * Math.min(1, realDt * 16);
+  } else {
+    JUICE.scale += (1 - JUICE.scale) * Math.min(1, realDt * 5);
+  }
+  return realDt * JUICE.scale;
+}
+function hitStop(sec) { JUICE.hitStop = Math.max(JUICE.hitStop, sec); }
+function slowmo(sec, scale) { JUICE.slow = Math.max(JUICE.slow, sec); JUICE.slowTarget = scale; }
+function punchFov(target) { JUICE.fovTarget = target; }
+function flashHit(strength) { JUICE.flash = Math.max(JUICE.flash, strength); }
+
+// —— 方向性震屏：命中时镜头朝受力方向顶一下 ——
+function kickScreen(dx, dz, amount) {
+  S.shake = Math.max(S.shake, amount * 0.55);
+  const l = Math.hypot(dx, dz) || 1;
+  S.shakeX = Math.max(-0.5, Math.min(0.5, S.shakeX + (dx / l) * amount * 0.22));
+  S.shakeY = Math.max(-0.35, Math.min(0.35, S.shakeY + (dz / l) * amount * 0.14));
+}
+
+/* ---------- 伤害飘字 ---------- */
+const dmgNumPool = [];
+{
+  const layer = $('dmgNums');
+  for (let i = 0; i < 30; i++) {
+    const el = document.createElement('div');
+    el.className = 'dnum';
+    el.style.display = 'none';
+    layer.appendChild(el);
+    dmgNumPool.push({ el, life: 0 });
+  }
+}
+function popDamageNumber(worldPos, amount, kind) {
+  _projV.set(worldPos.x, worldPos.y, worldPos.z).project(camera);
+  if (_projV.z > 1) return;
+  const x = (_projV.x * 0.5 + 0.5) * innerWidth;
+  const y = (-_projV.y * 0.5 + 0.5) * innerHeight;
+  let slot = null;
+  for (const d of dmgNumPool) if (d.life <= 0) { slot = d; break; }
+  if (!slot) slot = dmgNumPool[0];
+  slot.life = 0.95;
+  const el = slot.el;
+  el.className = 'dnum' + (kind ? ' ' + kind : '');
+  el.textContent = Math.round(amount);
+  el.style.display = 'block';
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  el.style.animation = 'none';
+  void el.offsetWidth;                 // 强制重排以重放动画
+  el.style.animation = 'dnumUp .95s ease-out forwards';
+}
+
+/* ---------- 碎肉块（击杀时炸开） ---------- */
+const goreGeo = new THREE.BoxGeometry(0.16, 0.11, 0.14);
+const gorePool = [];
+for (let i = 0; i < 48; i++) {
+  const m = new THREE.Mesh(goreGeo, MAT.zBlood);
+  m.visible = false; m.castShadow = false;
+  scene.add(m);
+  gorePool.push({ m, vx: 0, vy: 0, vz: 0, rx: 0, rz: 0, life: 0 });
+}
+function burstGore(pos, n, dirx, dirz) {
+  let c = 0;
+  for (const g of gorePool) {
+    if (g.life <= 0 && c < n) {
+      g.m.visible = true;
+      g.m.position.copy(pos);
+      const a = Math.random() * Math.PI * 2, r = Math.random();
+      const sp = 3 + r * 6;
+      g.vx = Math.cos(a) * sp * 0.6 + dirx * 5;
+      g.vy = 3 + Math.random() * 6;
+      g.vz = Math.sin(a) * sp * 0.6 + dirz * 5;
+      g.rx = (Math.random() - 0.5) * 14;
+      g.rz = (Math.random() - 0.5) * 14;
+      g.m.scale.setScalar(0.6 + Math.random() * 0.9);
+      g.life = 1.1 + Math.random() * 0.7;
+      c++;
+    }
+    if (c >= n) break;
+  }
+}
+
+/* ---------- 地面血迹（战场痕迹） ---------- */
+const decalGeo = new THREE.CircleGeometry(0.5, 12);
+const decalPool = [];
+for (let i = 0; i < 40; i++) {
+  const m = new THREE.Mesh(decalGeo, new THREE.MeshBasicMaterial({ color: 0x2b0606, transparent: true, opacity: 0.55, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2;
+  m.visible = false;
+  scene.add(m);
+  decalPool.push({ m, life: 0 });
+}
+function spawnBloodDecal(x, z, scale) {
+  let slot = null;
+  for (const d of decalPool) if (d.life <= 0) { slot = d; break; }
+  if (!slot) { slot = decalPool[0]; slot.life = 0.01; }
+  slot.life = 26;
+  slot.m.visible = true;
+  slot.m.position.set(x, 0.03, z);
+  slot.m.rotation.z = Math.random() * Math.PI * 2;
+  slot.m.scale.setScalar(scale);
+  slot.m.material.opacity = 0.55;
+}
+
+/* ---------- 命中冲击环（打在尸体上的小爆点） ---------- */
+const hitRingGeo = new THREE.RingGeometry(0.34, 0.52, 20);
+const hitRingPool = [];
+for (let i = 0; i < 16; i++) {
+  const m = new THREE.Mesh(hitRingGeo, new THREE.MeshBasicMaterial({ color: 0xfff0c0, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2;
+  m.visible = false; m.frustumCulled = false;
+  scene.add(m);
+  hitRingPool.push({ m, life: 0, max: 0 });
+}
+function spawnHitRing(x, y, z, color, size) {
+  let slot = null;
+  for (const r of hitRingPool) if (r.life <= 0) { slot = r; break; }
+  if (!slot) return;
+  slot.life = slot.max = 0.3;
+  slot.m.visible = true;
+  slot.m.material.color.set(color);
+  slot.m.material.opacity = 0.95;
+  slot.m.position.set(x, y, z);
+  slot.m.scale.setScalar(size * 0.5);
+  slot.size = size;
+}
+
+// —— 一次攻击打死多只：冲击线 + 慢动作 + 大字播报 ——
+function triggerMultiKill(kills, label) {
+  if (kills < 2) return;
+  flashHit(Math.min(0.85, 0.3 + kills * 0.12));
+  if (kills >= 3) {
+    JUICE.rays = 1;
+    slowmo(0.45, 0.32);
+    hitStop(0.02);
+    punchFov(FOV_BASE - 5);
+    announce('多杀 ×' + kills + (label ? ' · ' + label : ''), '#ffd60a');
+    S.shake = Math.max(S.shake, 0.5 + kills * 0.06);
+  } else {
+    hitStop(0.012);
+    punchFov(FOV_BASE - 2.5);
+  }
+}
+
+/* ============================================================
    姿态识别（MediaPipe Pose）
 ============================================================ */
 let poseLandmarker = null;
@@ -915,6 +1449,8 @@ const LM = { w: 0, h: 0 };
 const GEST_COOLDOWN = 0.40;
 let lastPunchAt = -1e9;
 let lastBladeAt = -1e9;   // 武士刀三式识别冷却（毫秒）
+let lastBowAt = -1e9;     // 弓箭单臂扯线射箭冷却（毫秒）
+let lastFlailAt = -1e9;   // 流星锤转圈抽击冷却（毫秒）
 
 // 手势跟踪状态：腕-肩归一化距离（出拳=手臂伸直，距离骤增），配合距离/速度峰值保持
 const GT = {
@@ -924,6 +1460,8 @@ const GT = {
   dMin: 0,              // 距离近期低点（判断「从弯曲到伸直」的真实出拳，防手臂一直伸直误触）
   fist: 0,
   cxBase: undefined,    // 双肩中点 x 基准（身体横移闪避）
+  cxSm: undefined,     // 双肩中点 x 平滑值（滑动转盘用）
+  cxPrev: undefined,   // 上一帧平滑肩中点（算每帧横向位移量）
   faceBase: undefined,  // 人脸宽度校准基准（脸部远近，稳定时自适应）
   faceSm: 0,            // 平滑人脸宽度
   facePrev: undefined,  // 上一帧平滑脸宽（用于计算脸宽变化速率）
@@ -1124,9 +1662,18 @@ function drawSkeleton(lm) {
    · 主要为上下运动 = 竖砍
    · 上下 + 左右都有明显位移 = 斜劈
    只在装备已解锁的武士刀时启用，避免与单手出拳判定互相干扰。 */
+// 双手握持武器（武士刀/长棍）：双手握拳并拢后按挥动方向识别三式
+//   katana: 斜劈(slash)/竖砍(chop)/捅刺(thrust)
+//   staff:  横扫(sweep)/下劈(smash)/戳刺(poke)
+const TWO_HAND_FORMS = {
+  katana: { slash: '斜劈', chop: '竖砍', thrust: '捅刺', forms: ['slash', 'chop', 'thrust'] },
+  staff:  { sweep: '横扫', smash: '下劈', poke: '戳刺', forms: ['sweep', 'smash', 'poke'] },
+};
 function detectBladeGesture(lm, P, R, L, Rs, Ls, shW, chestY, guardNow, now, dt) {
   const b = GT.blade;
-  if (!S.running || S.over || !S.katanaUnlocked || S.weapon !== 'katana' || guardNow) { b.on = false; return false; }
+  const w = S.weapon;
+  const map = TWO_HAND_FORMS[w];
+  if (!S.running || S.over || !map || !S.unlocked.has(w) || guardNow) { b.on = false; return false; }
 
   const mx = (L.x + R.x) / 2, my = (L.y + R.y) / 2, mz = (L.z + R.z) / 2;
   const gap = Math.hypot(L.x - R.x, L.y - R.y) / shW;
@@ -1176,11 +1723,178 @@ function detectBladeGesture(lm, P, R, L, Rs, Ls, shW, chestY, guardNow, now, dt)
 
   lastBladeAt = now;
   b.on = false;
-  S.gesture = form === 'slash' ? '斜劈!' : form === 'chop' ? '竖砍!' : '捅刺!';
+  // 把通用方向映射到当前武器的招式名
+  const wForm = (w === 'staff') ? { thrust: 'poke', chop: 'smash', slash: 'sweep' }[form] : form;
+  const wName = (w === 'staff') ? { poke: '戳刺!', smash: '下劈!', sweep: '横扫!' }[wForm] : { thrust: '捅刺!', chop: '竖砍!', slash: '斜劈!' }[wForm];
+  S.gesture = wName;
   // dir = 画面中点位移方向（±1）；镜头镜像，动画需用它反向还原真实挥砍方向
   const dir = (dx > 0.02) ? 1 : (dx < -0.02) ? -1 : 0;
-  triggerAttack('katana', { form, dir });
+  triggerAttack(w, { form: wForm, dir });
   return true;
+}
+
+// 蓄力武器（战锤/弓箭/流星锤）手势识别状态
+const GW = {
+  hammer: { on: false, t0: 0, charged: false },
+  // 弓箭：单臂扯线——任意一只手「拉回 → 送出」完成一个来回 = 射出一支箭
+  bowL:   { phase: 0, d: 0 },
+  bowR:   { phase: 0, d: 0 },
+  // 流星锤：手臂伸直绕肩转一圈 = 抽击一次（每只手各自累计旋转角度）
+  flailL: { acc: 0, ang: 0, has: false },
+  flailR: { acc: 0, ang: 0, has: false },
+  whip:   { on: false, t0: 0 },
+  daggers:{ on: false, t0: 0, alt: 0 },
+  // 双枪：左右手各自独立记录「小臂上下摇动」状态
+  gunR:   { on: false, dir: 0, anchorY: 0, lastY: 0, lastFired: -1e9 },
+  gunL:   { on: false, dir: 0, anchorY: 0, lastY: 0, lastFired: -1e9 },
+};
+
+// 双枪动捕：小臂上下摇动（像摇晃手机），方向翻转一次 = 开一枪
+// 左右手各自独立计时 → 可以左右同时开火（双发）
+const GUN_DIR_THR  = 0.55;   // 判定「正在上下摇」的速度阈值（肩宽/秒，除以灵敏度）——比原来灵敏一倍
+const GUN_TRAVEL   = 0.26;   // 单程最小位移（肩宽），过滤小幅抖动
+const GUN_COOLDOWN = 0.18;   // 同一只手两枪最小间隔（秒）
+function detectGunGesture(lm, P, R, L, Rs, Ls, shW, now, dt) {
+  if (!S.running || S.over || S.defending) return false;
+  if (!S.unlocked.has('gun')) return false;
+  const hands = [{ key: 'R', st: GW.gunR, wrist: R }, { key: 'L', st: GW.gunL, wrist: L }];
+  let fired = false;
+  // 两只手都检查一遍（不提前 return）→ 左右同时摇动时可以双枪齐射
+  for (const h of hands) {
+    const st = h.st, y = h.wrist.y;
+    if (!st.on) { st.on = true; st.dir = 0; st.anchorY = y; st.lastY = y; st.lastFired = -1e9; continue; }
+    const v = (y - st.lastY) / shW / dt;      // 肩宽/秒；负 = 画面向上
+    st.lastY = y;
+    let dir = 0;
+    if (v < -GUN_DIR_THR / S.sensitivity) dir = 1;        // 正在向上摇
+    else if (v > GUN_DIR_THR / S.sensitivity) dir = -1;    // 正在向下摇
+    if (dir === 0) continue;                                // 停住，不动
+    if (st.dir === 0) { st.dir = dir; st.anchorY = y; continue; }   // 记录转向点
+    if (dir === st.dir) continue;                           // 同向继续
+    // 方向翻转 → 刚走完「上」或「下」一程
+    const travel = Math.abs(y - st.anchorY) / shW;
+    st.dir = dir; st.anchorY = y;
+    if (travel < GUN_TRAVEL) continue;                      // 幅度太小不算一次摇动
+    if (now - st.lastFired < GUN_COOLDOWN * 1000) continue;
+    st.lastFired = now;
+    S.gesture = '双枪开火!';
+    shootGun(h.key);
+    fired = true;
+  }
+  return fired;
+}
+
+// 单手握拳判定（某只手在指定高度/位置）
+function fistAt(lm, P, hand, shW) {
+  const wrist = P(hand);                       // 15 左腕 / 16 右腕
+  const tipIdx = hand === 15 ? 19 : 20;        // 对应食指尖
+  const raw = lm[tipIdx];
+  if (raw && raw.visibility !== undefined && raw.visibility < 0.5) return false;
+  const tip = P(tipIdx);
+  return Math.hypot(tip.x - wrist.x, tip.y - wrist.y) / shW < 0.7;
+}
+
+// 蓄力武器识别：战锤（举过头→下砸/侧抡）、弓箭（前手伸直+后手拉颊→放箭）、流星锤（画圈蓄力→甩开）
+function detectChargeGesture(lm, P, R, L, Rs, Ls, shW, chestY, now) {
+  const w = S.weapon;
+  if (w === 'hammer') {
+    const st = GW.hammer;
+    if (!S.unlocked.has(w)) return;
+    // 战锤：大臂抬高即进入蓄力（不再要求握拳 / 举过头顶）
+    //   判定：右手腕高于肩线（图像 y 向下，所以 R.y < 肩线 y）且手离肩不太远（手臂抬起但没完全伸直）
+    const shoulderY = (Rs.y + Ls.y) / 2;
+    const raised = R.y < shoulderY - shW * 0.15 && Math.hypot(R.x - Rs.x, R.y - Rs.y) / shW < 1.7;
+    if (raised && !st.on) { st.on = true; st.t0 = now; beginCharge(); }
+    // 手从高处快速下落到肩部以下 → 释放（下砸）；大幅横移 → 侧抡
+    if (st.on) {
+      const dropped = R.y > shoulderY + shW * 0.2;   // 落到肩部以下
+      const side = Math.abs(R.x - Rs.x) / shW > 1.6;  // 横向抡出
+      if (dropped || side) {
+        st.on = false; S.charging = false;
+        triggerAttack('hammer', { form: side ? 'swing' : 'smash', charge: Math.min(2.5, 1 + (now - st.t0) / 1000 * 1.2) });
+      }
+    }
+  } else if (w === 'bow') {
+    // 弓箭：任意一只手「向后扯线 → 再送回前方」= 完成一个来回 → 射出一支箭
+    //   phase 0 = 待拉；1 = 已扯线（手收到脸/肩前，手臂贴着身体）
+    //   手收到脸旁（nearHead 且离肩近）= 扯线；手臂重新伸直向外（d > 0.95）= 送出去 → 发箭
+    if (!S.unlocked.has(w)) return;
+    const shoulderY = (Rs.y + Ls.y) / 2;
+    for (const side of [{ st: GW.bowR, wrist: R, sh: Rs }, { st: GW.bowL, wrist: L, sh: Ls }]) {
+      const s = side.st;
+      const d = Math.hypot(side.wrist.x - side.sh.x, side.wrist.y - side.sh.y) / shW;
+      const nearHead = side.wrist.y < shoulderY + shW * 0.55;   // 手在肩线以上（脸/头附近）
+      if (s.phase === 0) {
+        if (nearHead && d < 0.9) { s.phase = 1; s.d = d; }       // 手收到脸旁 = 扯线完成
+      } else if (s.phase === 1) {
+        if (d > 0.95) {                                         // 送出去 = 一个来回走完 → 射箭
+          s.phase = 0; s.d = d;
+          if (now - lastBowAt > 260) {
+            lastBowAt = now;
+            triggerAttack('bow');   // 每箭伤害固定
+          }
+        } else s.d = d;
+      }
+    }
+  } else if (w === 'flail') {
+    // 流星锤：手臂伸直后绕肩转满一整圈 = 抽击一次（不再需要蓄力时长）
+    //   每只手独立累计「腕相对肩」的旋转角度，累计满 2π 触发一次
+    if (!S.unlocked.has(w)) return;
+    for (const side of [{ st: GW.flailR, wrist: R, sh: Rs }, { st: GW.flailL, wrist: L, sh: Ls }]) {
+      const s = side.st;
+      const dist = Math.hypot(side.wrist.x - side.sh.x, side.wrist.y - side.sh.y) / shW;
+      const ang = Math.atan2(side.wrist.y - side.sh.y, side.wrist.x - side.sh.x);
+      if (!s.has) { s.has = true; s.ang = ang; s.acc = 0; continue; }
+      let d = ang - s.ang;
+      if (d > Math.PI) d -= Math.PI * 2; else if (d < -Math.PI) d += Math.PI * 2;
+      s.ang = ang;
+      if (dist > 1.05) s.acc += Math.abs(d);      // 只有手臂伸直时才累计圈数
+      if (s.acc >= Math.PI * 2) {
+        s.acc = 0;
+        if (now - lastFlailAt > 320) {
+          lastFlailAt = now;
+          triggerAttack('flail');   // 每次伤害固定
+        }
+      }
+    }
+  }
+}
+
+// 双匕首：双手胸前交错划动=连割；双手同时合拢前刺=双刺
+function detectDaggerGesture(lm, P, R, L, Rs, Ls, shW, chestY, now, dt) {
+  if (!S.unlocked.has('daggers')) return;
+  const st = GW.daggers;
+  const bothFront = Math.abs(R.y - chestY) < shW * 0.5 && Math.abs(L.y - chestY) < shW * 0.5;
+  const spread = Math.abs(R.x - L.x) / shW;   // 双手水平距离
+  if (st._prevSpd === undefined) st._prevSpd = 0;
+  const moving = (Math.abs(R.x - (st._rx || R.x)) + Math.abs(L.x - (st._lx || L.x))) / shW / dt;
+  st._rx = R.x; st._lx = L.x;
+  if (bothFront && spread < 2.2 && moving > 1.5 && now - lastBladeAt > 240) {
+    // 交替划动 → 连割；合拢前刺（双手快速靠近且向前）→ 双刺
+    const closing = spread < 0.7;
+    lastBladeAt = now;
+    S.gesture = closing ? '双刺!' : '连割!';
+    triggerAttack('daggers', { form: closing ? 'twin' : 'flurry' });
+  }
+}
+
+// 鞭子：手臂往前甩一次就打（不再需要蓄力）
+//   判定：右臂从身侧向前快速甩出 —— 手腕相对肩膀的「向外/向前」位移速度够快
+function detectWhipGesture(lm, P, R, Rs, Ls, shW, chestY, now, dt) {
+  if (!S.unlocked.has('whip')) return;
+  const st = GW.whip;
+  // 手腕相对同侧肩膀的向量长度（肩宽单位）
+  const reach = Math.hypot(R.x - Rs.x, R.y - Rs.y) / shW;
+  if (st._prevReach === undefined) { st._prevReach = reach; return; }
+  const dReach = (reach - st._prevReach) / dt;    // 手臂甩出速度（肩宽/秒）
+  st._prevReach = reach;
+  // 往前甩 = 手臂快速伸展开（reach 骤增）；横向快速挥出也接受（横扫鞭）
+  const forward = dReach > 3.2 / S.sensitivity;
+  if (forward && now - lastBladeAt > 380) {
+    lastBladeAt = now;
+    S.gesture = '抽打!';
+    triggerAttack('whip');
+  }
 }
 
 function analyzeGestures(lm) {
@@ -1284,34 +1998,89 @@ function analyzeGestures(lm) {
   const handSpread = (Math.abs(L.x - midX) + Math.abs(R.x - midX)) / shW;
   const guardNow = nearChest && handCross < -0.08 && handSpread < 2.4;
 
+  // ── 抱胸检测：进入「武器选择状态」的唯一触发姿势 ──────────────
+  // 抱胸 = 双手在胸前合拢抱住（两手彼此靠拢成一体，手肘自然下垂）
+  // 与「双臂交叉防御」的区别：防御时两手交叉分列胸口两侧（张开的 X 形，spread≈1.0），
+  //   抱胸时两手靠拢（gap < 0.62 肩宽、spread < 0.8），两者在几何上互斥。
+  const hugGap = Math.abs(L.x - R.x) / shW;
+  const hugNow = nearChest && hugGap < 0.62 && handSpread < 0.80 && dL < 1.02 && dR < 1.02;
+
   // 防抖：连续保持约 0.1s 进入防御；松开后快速退出（dt*5），避免防御残留吞掉紧接着的出拳
-  if (guardNow) {
-    S.guardHold = Math.min(0.3, S.guardHold + dt);
-    if (S.guardHold >= 0.1) {
-      if (!S.defending) sfxBlock();   // 刚进入防御姿态：格挡音
-      S.defending = true;
-    }
-  } else {
+  if (hugNow) {
+    // 抱胸优先：压过防御姿态，进入武器选择流程
+    S.hugArmed = true;
+    S.gesture = '🫂 抱胸';
     S.guardHold = Math.max(0, S.guardHold - dt * 5);
-    if (S.guardHold <= 0) S.defending = false;
+    S.defending = false;
+  } else {
+    S.hugArmed = false;
+    if (guardNow) {
+      S.guardHold = Math.min(0.3, S.guardHold + dt);
+      if (S.guardHold >= 0.1) {
+        if (!S.defending) sfxBlock();   // 刚进入防御姿态：格挡音
+        S.defending = true;
+      }
+    } else {
+      S.guardHold = Math.max(0, S.guardHold - dt * 5);
+      if (S.guardHold <= 0) S.defending = false;
+    }
   }
 
-  // 武士刀：双手握拳并拢后的挥动方向识别（优先于单手出拳判定）
-  const bladeHit = detectBladeGesture(lm, P, R, L, Rs, Ls, shW, chestY, guardNow, now, dt);
+  // 身体横向滑动量（肩宽单位）：抱胸选择时用来滑动武器转盘
+  if (GT.cxSm === undefined) { GT.cxSm = cx; GT.cxPrev = cx; }
+  GT.cxSm += (cx - GT.cxSm) * Math.min(1, dt * 14);      // 平滑，跟随手部跟随的轻微抖动
+  const dCx = (GT.cxSm - GT.cxPrev) / shW;                // 本帧横向位移（肩宽单位，带符号）
+  GT.cxPrev = GT.cxSm;
+  S.bodySlide = dCx;
+  S.wheelAccum += dCx;                                    // 累积成「滑动量」交给转盘
 
-  // 出拳判定（双条件）——防御姿态下不出拳（用当前帧 guardNow 即时判断，而不是带防抖的 defending，
+  // 武器专属手势识别（每个武器走各自的体感动作，避免误触普通出拳）
+  let handled = false;
+  if (S.selectMode) {
+    // 武器选择状态：只用「向前出拳」确认，不跑武器专属手势（否则刀/枪手势会吞掉确认动作）
+    handled = false;
+  } else if (S.weapon === 'gun') {
+    detectGunGesture(lm, P, R, L, Rs, Ls, shW, now, dt);
+    handled = true;
+    if (S.gesture !== '双枪开火!') S.gesture = '摇臂待命';
+  } else if (S.weapon === 'katana' || S.weapon === 'staff') {
+    handled = detectBladeGesture(lm, P, R, L, Rs, Ls, shW, chestY, guardNow, now, dt);
+    if (!handled && S.weapon === 'katana' && GT.blade.on) S.gesture = '握刀蓄势';
+    else if (!handled && S.weapon === 'staff' && GT.blade.on) S.gesture = '握棍蓄势';
+    else if (!handled) S.gesture = S.weapon === 'katana' ? '双手握刀待命' : '双手握棍待命';
+  } else if (S.weapon === 'hammer') {
+    detectChargeGesture(lm, P, R, L, Rs, Ls, shW, chestY, now);
+    handled = true;
+    if (S.charging) S.gesture = '蓄力中…';
+    else if (!GW.hammer.on) S.gesture = '举锤待命';
+  } else if (S.weapon === 'bow') {
+    detectChargeGesture(lm, P, R, L, Rs, Ls, shW, chestY, now);
+    handled = true;
+    if (S.gesture !== '放箭!') S.gesture = '拉弓待命';
+  } else if (S.weapon === 'flail') {
+    detectChargeGesture(lm, P, R, L, Rs, Ls, shW, chestY, now);
+    handled = true;
+    if (S.gesture !== '旋锤!') S.gesture = '旋锤待命';
+  } else if (S.weapon === 'daggers') {
+    detectDaggerGesture(lm, P, R, L, Rs, Ls, shW, chestY, now, dt);
+    handled = true;
+    if (S.gesture !== '连割!' && S.gesture !== '双刺!') S.gesture = '双匕待命';
+  } else if (S.weapon === 'whip') {
+    detectWhipGesture(lm, P, R, Rs, Ls, shW, chestY, now, dt);
+    handled = true;
+    if (S.gesture !== '抽打!') S.gesture = '持鞭待命';
+  }
+
+  // 出拳判定（仅拳走这里）——防御姿态下不出拳（用当前帧 guardNow 即时判断，而不是带防抖的 defending，
   //   这样放下双臂的瞬间就能立即出拳，不会被防御状态的 0.1s 退出延迟吞掉）
   const distThr = 0.95;                    // 手臂接近伸直（肩宽）
   const velThr = 1.6 / S.sensitivity;      // 快速出拳（肩宽/秒），灵敏度越高阈值越低
-  const katanaBlocking = S.weapon === 'katana' && S.katanaUnlocked && GT.blade.on;
-  if (bladeHit) {
-    // detectBladeGesture 已设置招式提示
+  if (handled) {
+    // 武器专属手势已接管
+  } else if (hugNow) {
+    S.gesture = '🫂 抱胸';      // 抱胸时不出拳（手被占用）
   } else if (guardNow && S.defending) {
     S.gesture = '防御';
-  } else if (katanaBlocking) {
-    S.gesture = '握刀蓄势';
-  } else if (S.weapon === 'katana') {
-    S.gesture = '双手握刀待命';
   } else if (GT.dPeak > distThr && GT.vPeak > velThr && (GT.dPeak - GT.dMin) > 0.15 && now - lastPunchAt > GEST_COOLDOWN * 1000) {
     lastPunchAt = now;
     GT.dPeak = 0; GT.vPeak = 0;
@@ -1326,7 +2095,12 @@ function analyzeGestures(lm) {
     if (ay > 0.6 && ay > ax * 1.2 && pdy < 0) ptype = 'uppercut';   // 明显向上
     else if (ax > 0.55 && ax > ay * 1.3) ptype = 'hook';            // 明显横向
     else ptype = isLeft ? 'jab' : 'cross';                          // 直拳：左=刺拳，右=后手直拳
-    triggerAttack('punch', { type: ptype, hand: isLeft ? 'L' : 'R' });
+    if (S.selectMode) {
+      // 选择武器时向前出拳 = 确认当前选中的武器（不发动攻击）
+      confirmSelectMode();
+    } else {
+      triggerAttack('punch', { type: ptype, hand: isLeft ? 'L' : 'R' });
+    }
   } else {
     S.gesture = '待命';
   }
@@ -1338,34 +2112,102 @@ function analyzeGestures(lm) {
    攻击 / 连招 / 武器
 ============================================================ */
 const WEAPONS = {
-  fist:   { name: '拳头',   dmg: 26, range: 1.5, arc: 0.85, dur: 0.34 },
-  knife:  { name: '匕首',   dmg: 38, range: 1.8, arc: 0.80, dur: 0.30 },
-  katana: { name: '武士刀', dmg: 68, range: 2.4, arc: 0.70, dur: 0.42 },
-  gun:    { name: '枪支',   dmg: 34, range: 30,  arc: 1.00, dur: 0.45 },
+  fist:    { name: '拳头',   dmg: 42, range: 1.5, arc: 0.85, dur: 0.34, unlock: 0 },
+  gun:     { name: '双枪',   dmg: 38, range: 30,  arc: 1.00, dur: 0.45, unlock: 0 },
+  katana:  { name: '武士刀', dmg: 58, range: 2.4, arc: 0.70, dur: 0.42, unlock: 3 },
+  staff:   { name: '长棍',   dmg: 18, range: 2.8, arc: 0.40, dur: 0.50, unlock: 5 },
+  hammer:  { name: '战锤',   dmg: 45, range: 2.2, arc: 0.75, dur: 0.72, unlock: 7 },
+  daggers: { name: '双匕首', dmg: 30, range: 1.5, arc: 0.82, dur: 0.16, unlock: 9 },
+  whip:    { name: '鞭子',   dmg: 30, range: 5.0, arc: 0.90, dur: 0.46, unlock: 11 },
+  bow:     { name: '弓箭',   dmg: 62, range: 40,  arc: 1.00, dur: 1.1, unlock: 14 },
+  flail:   { name: '流星锤', dmg: 55, range: 3.0, arc: 0.15, dur: 0.80, unlock: 17 },
 };
+
+// 各武器解锁波次（1-indexed，通关该波后解锁；0 = 初始可用）
+function weaponLockLabel(w) {
+  return '第 ' + WEAPONS[w].unlock + ' 波解锁';
+}
 
 /* 武士刀三式：数值差异化
    arc 是「前方夹角余弦」阈值：越大 = 判定越窄（捅刺是一条直线）。
    aoe 是扇形外仍吃溅射伤害的半径；splash 是溅射伤害比例。 */
 const KATANA_FORMS = [
-  { id: 'slash',  name: '斜劈', tag: '横扫群敌', dmg: 58, range: 2.50, arc: 0.52, aoe: 1.7, splash: 0.65, dur: 0.44, shake: 0.34, knock: 'side', stagger: 0.38, color: '#8fe3ff', verb: '斜斩群尸' },
-  { id: 'chop',   name: '竖砍', tag: '重击破甲', dmg: 92, range: 2.15, arc: 0.72, aoe: 0.9, splash: 0.40, dur: 0.50, shake: 0.58, knock: 'back', stagger: 0.55, color: '#ffd166', verb: '当头劈斩', armorBonus: 1.35 },
-  { id: 'thrust', name: '捅刺', tag: '直线穿透', dmg: 74, range: 3.20, arc: 0.93, aoe: 0,   splash: 0,    dur: 0.34, shake: 0.18, knock: 'pierce', stagger: 0.20, color: '#ff9de2', verb: '一刀贯入' },
+  { id: 'slash',  name: '斜劈', tag: '横扫群敌', dmg: 80, range: 2.50, arc: 0.52, aoe: 1.7, splash: 0.65, dur: 0.44, shake: 0.34, knock: 'side', stagger: 0.38, color: '#8fe3ff', verb: '斜斩群尸', armorBonus: 1.25 },
+  { id: 'chop',   name: '竖砍', tag: '重击破甲', dmg: 125, range: 2.15, arc: 0.72, aoe: 0.9, splash: 0.40, dur: 0.50, shake: 0.58, knock: 'back', stagger: 0.55, color: '#ffd166', verb: '当头劈斩', armorBonus: 1.35 },
+  { id: 'thrust', name: '捅刺', tag: '直线穿透', dmg: 102, range: 3.20, arc: 0.93, aoe: 0,   splash: 0,    dur: 0.34, shake: 0.18, knock: 'pierce', stagger: 0.20, color: '#ff9de2', verb: '一刀贯入' },
 ];
+/* 长棍三式：宽扇形清群 */
+const STAFF_FORMS = [
+  { id: 'sweep', name: '横扫', tag: '宽扇清群', dmg: 56, range: 2.80, arc: 0.60, aoe: 1.9, splash: 0.70, dur: 0.50, shake: 0.36, knock: 'side', stagger: 0.45, color: '#8fe3ff', verb: '横扫千军', armorBonus: 1.4 },
+  { id: 'smash', name: '下劈', tag: '当头砸击', dmg: 52, range: 2.40, arc: 0.70, aoe: 1.1, splash: 0.50, dur: 0.55, shake: 0.52, knock: 'back', stagger: 0.55, color: '#ffd166', verb: '当头棒喝', armorBonus: 1.2 },
+  { id: 'poke',  name: '戳刺', tag: '直线戳刺', dmg: 40, range: 3.10, arc: 0.94, aoe: 0,   splash: 0,    dur: 0.40, shake: 0.20, knock: 'pierce', stagger: 0.30, color: '#ff9de2', verb: '长棍贯刺' },
+];
+/* 双匕首二式：极快连割 / 双刺双段 */
+const DAGGER_FORMS = [
+  { id: 'flurry', name: '连割', tag: '极速划割', dmg: 15, range: 1.50, arc: 0.80, aoe: 0, splash: 0, dur: 0.16, shake: 0.10, knock: null,   stagger: 0.12, color: '#cfe8ff', verb: '双匕连割' },
+  { id: 'twin',   name: '双刺', tag: '合拢双刺', dmg: 30, range: 1.70, arc: 0.92, aoe: 0, splash: 0, dur: 0.28, shake: 0.20, knock: 'pierce', stagger: 0.30, color: '#ff9de2', verb: '双匕合刺', armorBonus: 1.3 },
+];
+/* 战锤二式：蓄力下砸 / 侧抡横砸 */
+const HAMMER_FORMS = [
+  { id: 'smash', name: '下砸', tag: '蓄力重击', dmg: 78, range: 2.20, arc: 0.75, aoe: 1.3, splash: 0.50, dur: 0.72, shake: 0.66, knock: 'back', stagger: 0.65, color: '#ffd166', verb: '千钧下砸', armorBonus: 1.5 },
+  { id: 'swing', name: '侧抡', tag: '横抡横扫', dmg: 76, range: 2.40, arc: 0.66, aoe: 1.4, splash: 0.55, dur: 0.60, shake: 0.50, knock: 'side', stagger: 0.50, color: '#ffb066', verb: '铁锤侧抡', armorBonus: 1.4 },
+];
+/* 鞭子：抽打（远程窄 AOE），回拉为重置 */
+const WHIP_FORMS = [
+  { id: 'crack', name: '抽打', tag: '远程抽击', dmg: 30, range: 5.00, arc: 0.90, aoe: 0.6, splash: 0.35, dur: 0.46, shake: 0.28, knock: 'side', stagger: 0.30, color: '#ffd166', verb: '长鞭抽打' },
+];
+// 所有招式汇总（击杀信息里按招式名反查动词）
+const ALL_FORMS = [...KATANA_FORMS, ...STAFF_FORMS, ...DAGGER_FORMS, ...HAMMER_FORMS, ...WHIP_FORMS];
 const bullets = [];   // 子弹 {x,y,z,v,dmg}
 
 const COMBOS = [
-  { need: 2, name: '双拳连击', dmg: 55, range: 1.9, arc: 1.0, aoe: 1.7, anim: 'double', dur: 0.5 },
-  { need: 3, name: '疯狂连击', dmg: 95, range: 2.1, arc: 1.0, aoe: 1.9, anim: 'flurry', dur: 0.6 },
-  { need: 4, name: '重拳终结', dmg: 150, range: 2.3, arc: 1.0, aoe: 2.2, anim: 'haymaker', dur: 0.7 },
+  { need: 2, name: '双拳连击', dmg: 85,  range: 1.9, arc: 1.0, aoe: 1.7, anim: 'double', dur: 0.5 },
+  { need: 3, name: '疯狂连击', dmg: 140, range: 2.1, arc: 1.0, aoe: 1.9, anim: 'flurry', dur: 0.6 },
+  { need: 4, name: '重拳终结', dmg: 220, range: 2.3, arc: 1.0, aoe: 2.2, anim: 'haymaker', dur: 0.7 },
 ];
 const bulletMeshes = [];   // 子弹视觉复用池
 
+function setWeaponLabel(text) { const wl = $('weaponLabel'); if (wl) wl.textContent = text; }
+
+// 招式武器：按 form 表把一次攻击推入队列（charge 为蓄力倍率，double 为双段伤害）
+function queueFormAttack(forms, f, dir, charge) {
+  S.attackQueue.push({
+    type: S.weapon + '_' + f.id, form: f.id,
+    dmg: f.dmg * (charge || 1), range: f.range, arc: f.arc, aoe: f.aoe,
+    splash: f.splash, knock: f.knock, stagger: f.stagger, armorBonus: f.armorBonus || 1,
+    dur: f.dur, t: 0, name: f.name, dir: dir || 0, double: !!f.double,
+  });
+}
+// 从招式表里取本次招式：体感直接指定；否则循环下一式
+function pickForm(forms, punch) {
+  let f = (punch && punch.form) ? forms.find(x => x.id === punch.form) : null;
+  if (f) { S.weaponForm = forms.indexOf(f); return f; }
+  f = forms[S.weaponForm % forms.length];
+  S.weaponForm = (S.weaponForm + 1) % forms.length;
+  return f;
+}
+// 蓄力武器（战锤/弓箭/流星锤）：长按进入蓄力，松开释放
+function beginCharge() {
+  if (!S.running || S.over || S.charging) return;
+  S.charging = true; S.chargeStart = S.time; S.chargeWeapon = S.weapon;
+  S.gesture = '蓄力中…';
+  announce('蓄力中…', '#ffd166');
+}
+function releaseCharge() {
+  if (!S.charging) return;
+  S.charging = false;
+  const t = S.time - S.chargeStart;
+  const charge = Math.min(2.5, 1 + t * 1.2);   // 1x → 2.5x
+  triggerAttack(S.chargeWeapon, { charge });
+}
+
 function triggerAttack(type, punch) {
   if (!S.running || S.over) return;
-  if (S.defending) return;   // 双臂交叉防御时不出拳
+  if (S.defending) return;   // 防御姿态下不出招
+  if (S.selectMode) return;  // 武器选择状态：不出招（出拳用于确认选择）
   const w = WEAPONS[S.weapon];
   if (!w) return;
+  const charge = (punch && punch.charge) || 1;
 
   if (S.weapon === 'fist') {
     S.punches++;
@@ -1386,39 +2228,107 @@ function triggerAttack(type, punch) {
   } else if (S.weapon === 'gun') {
     shootGun();
   } else if (S.weapon === 'katana') {
-    S.blades++; S.formsUsed.add((punch && punch.form) || (KATANA_FORMS[S.katanaForm % KATANA_FORMS.length].id));
-    // 武士刀三式：体感识别直接指定招式；键盘/手机挥动则循环 斜劈→竖砍→捅刺
-    let f = (punch && punch.form) ? KATANA_FORMS.find(x => x.id === punch.form) : null;
-    if (f) {
-      S.katanaForm = KATANA_FORMS.indexOf(f);
-    } else {
-      f = KATANA_FORMS[S.katanaForm % KATANA_FORMS.length];
-      S.katanaForm = (S.katanaForm + 1) % KATANA_FORMS.length;
-    }
-    S.attackQueue.push({
-      type: 'katana_' + f.id, form: f.id,
-      dmg: f.dmg, range: f.range, arc: f.arc, aoe: f.aoe,
-      splash: f.splash, knock: f.knock, stagger: f.stagger, armorBonus: f.armorBonus || 1,
-      dur: f.dur, t: 0, name: '刀·' + f.name,
-      dir: (punch && punch.dir) || 0,
-    });
-    addKnockCharge('katana');   // 连续剑击 3 次攒一次大击退
-    sfxSwing();                 // 挥刀 whoosh
+    S.blades++;
+    const f = pickForm(KATANA_FORMS, punch);
+    queueFormAttack(KATANA_FORMS, f, (punch && punch.dir) || 0);
+    addKnockCharge('katana');
+    sfxSwing();
     S.shake = Math.max(S.shake, f.shake);
-    const wl = $('weaponLabel'); if (wl) wl.textContent = WEAPONS.katana.name + '·' + f.name;
+    setWeaponLabel(WEAPONS.katana.name + '·' + f.name);
     announce(f.name + ' · ' + f.tag, f.color);
-  } else {
-    // 匕首：单次前刺
-    S.attackQueue.push({ type: S.weapon, dmg: w.dmg, range: w.range, arc: w.arc, aoe: 1.3, dur: w.dur, t: 0, name: null });
-    sfxSwing();   // 匕首挥击 whoosh
+  } else if (S.weapon === 'staff') {
+    S.blades++;
+    const f = pickForm(STAFF_FORMS, punch);
+    queueFormAttack(STAFF_FORMS, f, (punch && punch.dir) || 0);
+    addKnockCharge('staff');
+    sfxSwing();
+    S.shake = Math.max(S.shake, f.shake);
+    setWeaponLabel(WEAPONS.staff.name + '·' + f.name);
+    announce(f.name + ' · ' + f.tag, f.color);
+  } else if (S.weapon === 'hammer') {
+    S.blades++;
+    const f = pickForm(HAMMER_FORMS, punch);
+    queueFormAttack(HAMMER_FORMS, f, 0, charge);
+    addKnockCharge('hammer');
+    sfxSwing();
+    S.shake = Math.max(S.shake, f.shake * (0.6 + charge * 0.4));
+    setWeaponLabel(WEAPONS.hammer.name + '·' + f.name);
+    announce(f.name + (charge > 1.4 ? ' 蓄力重击！' : '') + ' · ' + f.tag, f.color);
+  } else if (S.weapon === 'daggers') {
+    S.blades++;
+    const f = pickForm(DAGGER_FORMS, punch);
+    queueFormAttack(DAGGER_FORMS, f, 0);
+    sfxSwing();
+    S.shake = Math.max(S.shake, f.shake);
+    setWeaponLabel(WEAPONS.daggers.name + '·' + f.name);
+    announce(f.name + ' · ' + f.tag, f.color);
+  } else if (S.weapon === 'whip') {
+    S.blades++;
+    const f = WHIP_FORMS[0];
+    queueFormAttack(WHIP_FORMS, f, 0);
+    sfxSwing();
+    S.shake = Math.max(S.shake, f.shake);
+    setWeaponLabel(WEAPONS.whip.name + '·' + f.name);
+    announce(f.name + ' · ' + f.tag, f.color);
+  } else if (S.weapon === 'bow') {
+    S.shots++;
+    fireArrow();          // 每箭伤害固定（不再随蓄力变化）
+  } else if (S.weapon === 'flail') {
+    S.blades++;
+    doFlailSwing();       // 每次伤害固定（不再随蓄力变化）
   }
 }
 
-function shootGun() {
-  if (S.gunCooldown > 0) return;
-  S.gunCooldown = 0.35;
+// 弓箭：射出一支箭（伤害固定）
+function fireArrow() {
+  if (S.bowCooldown > 0) return;
+  S.bowCooldown = 0.55;
+  const b = { x: S.playerX, y: 1.35, z: S.playerZ - 1.2, v: 40, dmg: WEAPONS.bow.dmg, arrow: true };
+  let m = bulletMeshes.pop();
+  if (!m) {
+    m = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 6), new THREE.MeshBasicMaterial({ color: 0xd8e0e8 }));
+    m.frustumCulled = false;
+    scene.add(m);
+  }
+  m.visible = true; m.position.set(b.x, b.y, b.z);
+  b.mesh = m;
+  bullets.push(b);
+  S.shake = Math.max(S.shake, 0.18);
+  S.gesture = '放箭!';
+  announce('放箭', '#8fe3ff');
+}
+
+// 流星锤：360° 环形 AOE（伤害固定）；抡空则自伤反噬
+function doFlailSwing() {
+  const R = WEAPONS.flail.range;
+  const dmg = WEAPONS.flail.dmg;
+  let hit = 0;
+  for (const zz of zombies) {
+    if (zz.state === 'die') continue;
+    const d = Math.hypot(zz.x - S.playerX, zz.z - S.playerZ);
+    if (d > R) continue;
+    damageZombie(zz, dmg, null, 'side', 0.6);
+    hit++;
+  }
+  spawnShockwave();
+  S.shake = Math.max(S.shake, 0.7);
+  if (hit > 0) { markPunchHit(); sfxHit(); announce('流星锤 · ' + hit + ' 连中', '#ffd166'); }
+  else { damagePlayer(6); announce('流星锤抡空 · 反噬！', '#ff6b6b'); }
+  // 推入一个空动画攻击，让主角做出甩锤动作（range 0 不会重复结算伤害）
+  S.attackQueue.push({ type: 'flail', dmg: 0, range: 0, arc: 1, aoe: 0, dur: 0.55, t: 0, name: null });
+}
+
+// 双枪开火：hand 指定用哪只手（'R'/'L'），不传则左右交替。
+// 每只手独立冷却 → 左右手可以同时开火（双枪齐射）。
+const GUN_CD = { R: 0, L: 0 };
+function shootGun(hand) {
+  const h = hand || (S.gunHand === 'R' ? 'L' : 'R');
+  if (GUN_CD[h] > 0) return false;
+  GUN_CD[h] = GUN_COOLDOWN;
   S.shots++;
-  const b = { x: S.playerX + (Math.random() - 0.5) * 0.06, y: 1.3, z: S.playerZ - 1.2, v: 46, dmg: WEAPONS.gun.dmg };
+  S.gunHand = h;
+  const off = h === 'L' ? -0.2 : 0.2;
+  const b = { x: S.playerX + off + (Math.random() - 0.5) * 0.06, y: 1.3, z: S.playerZ - 1.2, v: 46, dmg: WEAPONS.gun.dmg };
   let m = bulletMeshes.pop();
   if (!m) {
     m = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffe08a }));
@@ -1428,9 +2338,12 @@ function shootGun() {
   m.visible = true; m.position.set(b.x, b.y, b.z);
   b.mesh = m;
   bullets.push(b);
-  S.shake = Math.max(S.shake, 0.22);
-  S.gesture = '射击!';
-  announce('射击', '#7ec8ff');
+  S.shake = Math.max(S.shake, 0.16);
+  S.gesture = '双枪开火!';
+  announce('双枪射击', '#7ec8ff');
+  // 推入一个空动画攻击（range 0 不结算伤害），让主角做出举枪射击动作
+  S.attackQueue.push({ type: 'gun', dmg: 0, range: 0, arc: 1, aoe: 0, dur: 0.28, t: 0, name: null });
+  return true;
 }
 
 function executeCombo(c) {
@@ -1453,39 +2366,79 @@ function nearestZombie() {
 
 function hitZombies(range, arc, aoe, dmg, name, splash = 0.6, knock = null, stagger = 0.35, armorBonus = 1) {
   let hit = 0;
+  _swingKills = 0;
+  const CLOSE_ALL = 1.7;     // 贴身全向命中半径（与丧尸咬人距离 atkR 一致：
+                             // 尸群互相分离会把怪推到玩家侧方 ~1.2m，太小则永远打不到）
   for (const zz of zombies) {
     if (zz.state === 'die') continue;      // 已死亡丧尸不再被打，避免倒地动画重放
     const dx = zz.x - S.playerX, dz = zz.z - S.playerZ;   // 玩家在 (playerX, playerZ)
     const d = Math.hypot(dx, dz);
     if (d > range) continue;                 // 超出攻击范围打不中（硬上限）
-    if (d < 0.001) { hit++; damageZombie(zz, dmg, name, knock, stagger, armorBonus); continue; }
+    // 贴身距离：无论方位都能打中（体感原地出拳的直觉；否则怪绕到侧后方就完全打不到）
+    if (d < CLOSE_ALL) { hit++; damageZombie(zz, dmg, name, knock, stagger, armorBonus); continue; }
     const cosA = (-dz) / d;                   // 向前 (-Z) 的夹角余弦
     if (cosA > arc) { hit++; damageZombie(zz, dmg, name, knock, stagger, armorBonus); }
     else if (d < aoe) { hit++; damageZombie(zz, dmg * splash, name, knock, stagger * 0.7, armorBonus); } // 范围溅射
   }
-  if (hit > 0) { S.shake = Math.max(S.shake, 0.25); markPunchHit(); sfxHit(); }
+  // BOSS 战：平时打不到 BOSS 本体，只有狂暴时刻才能对它造成伤害
+  if (S.mode === 'boss' && BOSS.active && BOSS.hp > 0) {
+    const bdx = BOSS.x - S.playerX, bdz = BOSS.z - S.playerZ;
+    const bd = Math.hypot(bdx, bdz);
+    const bCosA = (-bdz) / (bd || 1);
+    const bRange = 2.6 + range * 0.55;
+    if (bd < bRange && (bd < 2.8 || bCosA > arc * 0.6)) {
+      if (hitBoss(dmg)) hit++;
+    }
+  }
+  if (hit > 0) {
+    S.shake = Math.max(S.shake, 0.25);
+    markPunchHit(); sfxHit();
+    // 顿感：命中越多停得越久（多体命中时「顿」一下最爽）
+    hitStop(Math.min(0.05, 0.012 + hit * 0.005 + _swingKills * 0.008));
+    flashHit(Math.min(0.7, 0.12 + hit * 0.05 + _swingKills * 0.08));
+    triggerMultiKill(_swingKills, name);
+  }
   return hit;
 }
+
+let _swingKills = 0;    // 本次攻击累计击杀数（用于多杀判定）
 
 function damageZombie(zz, dmg, name, knock = null, stagger = 0.35, armorBonus = 1) {
   if (zz.state === 'die') return;          // 已死亡不再结算伤害/重置倒地
   if (armorBonus > 1 && (zz.arch === 'brute' || zz.arch === 'titan')) dmg *= armorBonus;  // 竖砍破甲
   zz.hp -= dmg;
   zz.hitFlash = 1;                         // 受击闪红
+  zz.hitWhite = 1;                         // 受击白闪（更亮更短，配合顿帧）
   zz.stagger = Math.max(zz.stagger, stagger);
   // 击退按体型加权：小丧尸（爬行者/疾速）飞得更远，巨无霸/坦克更稳更抗打飞
   const kscale = 1.6 - zz.scale * 0.5;     // walker≈1.1 / crawler≈1.3 / titan≈0.8
+  let kdx = 0, kdz = 0;
   if (knock === 'side') {
-    zz.vx += (zz.x < S.playerX ? -1 : 1) * 33 * kscale; zz.vz -= 9 * kscale;   // 斜劈：横向打飞
+    const s = (zz.x < S.playerX ? -1 : 1);
+    zz.vx += s * 33 * kscale; zz.vz -= 9 * kscale;   // 斜劈：横向打飞
+    kdx = s; kdz = -0.3;
   } else if (knock === 'back') {
     zz.vz -= 51 * kscale; zz.vx += (Math.random() - 0.5) * 15.6 * kscale;        // 竖砍：正面击退
+    kdz = -1;
   } else if (knock === 'pierce') {
     zz.vz -= 19.2 * kscale;                                                       // 捅刺：贯入击退
+    kdz = -1;
   } else {
-    zz.vx += (Math.random() - 0.5) * 6.4 * kscale;                               // 拳头/匕首/枪：散开击退
+    zz.vx += (Math.random() - 0.5) * 6.4 * kscale;                               // 拳/双枪/箭：散开击退
     zz.vz -= 2.6 * kscale;
+    kdx = (Math.random() - 0.5) * 0.8; kdz = -0.4;
   }
-  burstBlood(zz.h.root.position.clone().add(new THREE.Vector3(0, 1.1, 0)), 12);
+  // 命中点：躯干高度
+  const hp3 = zz.h.root.position.clone().add(new THREE.Vector3(0, 1.1 * zz.scale, 0));
+  // 血雾朝击退方向喷（方向感更强）
+  burstBlood(hp3, 12, kdx, kdz);
+  // 伤害飘字（大伤害用更大的字）
+  const kind = dmg >= 120 ? 'huge' : (dmg >= 55 ? 'big' : '');
+  popDamageNumber(hp3, dmg, kind);
+  // 命中小爆点
+  spawnHitRing(hp3.x, 1.15 * zz.scale, hp3.z, dmg >= 100 ? 0xffd166 : 0xfff0c0, 0.8 + Math.min(1.6, dmg / 60));
+  // 镜头朝受力方向顶一下
+  kickScreen(kdx, kdz, Math.min(1.4, 0.35 + dmg / 90));
   // 丧尸嘶吼：只在被击中时发出（按品类，音量随距离衰减）
   const gd = Math.hypot(zz.x - S.playerX, zz.z - S.playerZ);
   playZombieGroan(zz.arch, gd);
@@ -1496,7 +2449,27 @@ function killZombie(zz, name) {
   zz.state = 'die'; zz.death = 0;
   if (zz.bar) zz.bar.g.visible = false;
   S.kills++; S.score += zz.score;
-  burstBlood(zz.h.root.position.clone().add(new THREE.Vector3(0, 0.6, 0)), 30);
+  _swingKills++;
+  // BOSS 战：击杀小兵累积狂怒条（杂兵 +10 / 精英 +18）
+  if (S.mode === 'boss' && BOSS.active) {
+    const elite = (zz.arch === 'brute' || zz.arch === 'titan' || zz.arch === 'hunter');
+    const before = BOSS.rage;
+    BOSS.rage = Math.min(BOSS.rageMax, BOSS.rage + (elite ? RAGE_PER_ELITE : RAGE_PER_TRASH));
+    if (before < BOSS.rageMax && BOSS.rage >= BOSS.rageMax && BOSS.berserk <= 0) {
+      enqueueToast('🔥 狂怒已满', '按 F 开启狂暴时刻', '#ffd60a');
+    }
+  }
+  const p = zz.h.root.position.clone();
+  // 尸体被「打飞」出去：沿击退方向抛出并翻滚
+  const dirx = (zz.x - S.playerX), dirz = (zz.z - S.playerZ);
+  const l = Math.hypot(dirx, dirz) || 1;
+  zz.vx = dirx / l * 7 + (Math.random() - 0.5) * 3;
+  zz.vz = dirz / l * 4 + 2;
+  zz.spin = (Math.random() - 0.5) * 12;
+  burstBlood(p.clone().add(new THREE.Vector3(0, 0.9, 0)), 34);
+  burstGore(p.clone().add(new THREE.Vector3(0, 1.0, 0)), 7, dirx / l, dirz / l);
+  spawnBloodDecal(zz.x, zz.z, 0.7 + Math.random() * 0.9);
+  spawnHitRing(p.x, 0.9, p.z, 0xff6b4a, 2.2);
   onKill(zz, name);
 }
 
@@ -1554,9 +2527,14 @@ function triggerBigKnock() {
 const ZOMBIE_NAMES = { walker: '普通丧尸', runner: '疾速丧尸', brute: '坦克丧尸', crawler: '爬行者', hunter: '猎杀者', titan: '巨无霸' };
 const WEAPON_VERBS = {
   fist:   ['重拳轰杀', '一记勾拳', '拳拳到肉', '正面击倒'],
-  knife:  ['匕首连刺', '快刀刺穿', '割喉', '匕首贯入'],
   katana: ['一刀两断', '武士刀横斩', '居合斩', '寒光一闪'],
-  gun:    ['爆头', '精准点射', '一枪毙命', '弹无虚发'],
+  gun:    ['双枪爆头', '交叉火线', '两枪带走', '弹无虚发'],
+  staff:  ['长棍横扫', '一棍撂倒', '棍影重重', '当头一棒'],
+  hammer: ['一锤定音', '重锤砸落', '千钧一击', '铁锤横抡'],
+  daggers:['快刀乱麻', '双匕连舞', '电光一闪', '连环割裂'],
+  whip:   ['长鞭破空', '鞭挞群尸', '一鞭抽飞', '裂空之鞭'],
+  bow:    ['一箭穿心', '百步穿杨', '利箭破空', '精准放箭'],
+  flail:  ['流星锤落', '锤影环绕', '一锤横扫', '旋锤碾压'],
 };
 const STREAKS = [
   { n: 2,  zh: '双杀',     en: 'DOUBLE KILL' },
@@ -1567,6 +2545,9 @@ const STREAKS = [
   { n: 8,  zh: '神挡杀神', en: 'UNSTOPPABLE' },
   { n: 10, zh: '人间兵器', en: 'GODLIKE' },
   { n: 15, zh: '末世终结者', en: 'APOCALYPSE' },
+  { n: 20, zh: '屠戮全场', en: 'CARNAGE' },
+  { n: 30, zh: '绞肉机',   en: 'MEAT GRINDER' },
+  { n: 45, zh: '尸潮粉碎机', en: 'TIDE BREAKER' },
 ];
 
 function onKill(zz, comboName) {
@@ -1574,11 +2555,19 @@ function onKill(zz, comboName) {
   S.lastKillAt = S.time;
   addKillFeed(zz, comboName);
   sfxKill();
+  // 击杀节奏：血量给一个「顿」的空档，尸体飞出去更有分量
+  hitStop(0.008);
   for (let i = STREAKS.length - 1; i >= 0; i--) {
     if (S.killStreak >= STREAKS[i].n && i > S.streakTier) {
       S.streakTier = i;
       showStreak(STREAKS[i]);
       S.shake = Math.max(S.shake, 0.35 + i * 0.05);
+      // 连杀里程碑：慢动作 + 冲击线 + 镜头推近，爽度直接拉满
+      slowmo(0.5, 0.42);
+      JUICE.rays = 1;
+      flashHit(0.55);
+      punchFov(FOV_BASE - 4);
+      hitStop(0.025);
       break;
     }
   }
@@ -1587,11 +2576,9 @@ function onKill(zz, comboName) {
 function addKillFeed(zz, comboName) {
   const w = WEAPONS[S.weapon];
   let label, verb;
-  if (comboName && comboName.startsWith('刀·')) {
-    label = comboName.slice(2);
-    const f = KATANA_FORMS.find(x => x.name === label);
-    verb = f ? f.verb : '一刀封喉';
-  } else if (comboName) { label = comboName; verb = '连招终结'; }
+  const f = comboName ? ALL_FORMS.find(x => x.name === comboName.replace(/^刀·/, '')) : null;
+  if (f) { label = f.name; verb = f.verb; }
+  else if (comboName) { label = comboName; verb = '连招终结'; }
   else {
     label = w.name;
     const arr = WEAPON_VERBS[S.weapon] || WEAPON_VERBS.fist;
@@ -1656,7 +2643,6 @@ const SFX_FILES = {
   step: 'steps-grass.ogg', dash: 'dash.ogg',
   zombieGroan: 'zombie-groan.ogg', growl: 'monster-growl.ogg', ghost: 'ghost.ogg', goblin: 'goblin-laugh.ogg',
   wolf: 'wolf-howl.ogg', roar: 'dragon-roar.ogg', bossRoar: 'boss-roar.ogg', squeak: 'creature-squeak.ogg',
-  zb1: 'zombie_2106.mp3', zb2: 'zombie_2107.mp3', zb3: 'zombie_2108.mp3', zb4: 'zombie_2110.mp3', zb5: 'zombie_2111.mp3', zb6: 'zombie_2112.mp3',
   gameOver: 'game-over.ogg', victory: 'victory.ogg',
   bgm: 'bgm.mp3',
 };
@@ -1692,7 +2678,7 @@ function startMusic() {
   if (!audioCtx || !SFX.bgm) return;
   const src = audioCtx.createBufferSource();
   src.buffer = SFX.bgm; src.loop = true;
-  const g = audioCtx.createGain(); g.gain.value = 0.55;
+  const g = audioCtx.createGain(); g.gain.value = 0.38;
   src.connect(g); g.connect(audioCtx.destination);
   src.start();
   musicNodes.push(src);
@@ -1703,41 +2689,39 @@ function stopMusic() {
 }
 
 function sfxPunch() {                                                    // 出拳（whoosh）
-  if (playSfx('punch', { variation: 0.35, volume: 0.55 })) return;
-  tone(180, 0.08, 'square', 0.22, 0, 90);
+  if (playSfx('punch', { variation: 0.35, volume: 0.34 })) return;
+  tone(180, 0.08, 'square', 0.16, 0, 90);
 }
 function sfxHit() {                                                      // 命中（按武器分层）
-  if (S.weapon === 'katana') { if (playSfx('swordClash', { variation: 0.15, volume: 0.95 })) return; }
-  else if (S.weapon === 'knife') { if (playSfx('stab', { variation: 0.15, volume: 0.9 })) return; }
-  else { if (playSfx('kick', { variation: 0.3, volume: 0.9 })) return; }
-  tone(320, 0.06, 'square', 0.26, 0, 160);
+  if (S.weapon === 'katana') { if (playSfx('swordClash', { variation: 0.15, volume: 0.6 })) return; }
+  else { if (playSfx('kick', { variation: 0.3, volume: 0.55 })) return; }
+  tone(320, 0.06, 'square', 0.18, 0, 160);
 }
-function sfxSwing() {                                                    // 刀剑/匕首挥击出手（whoosh）
-  if (S.weapon === 'katana') { if (playSfx('swordSwing', { rate: 0.9 + Math.random() * 0.3, volume: 0.7 })) return; }
-  else if (S.weapon === 'knife') { if (playSfx('swordSwing', { rate: 1.15, volume: 0.5 })) return; }
+function sfxSwing() {                                                    // 刀剑挥击出手（whoosh）
+  if (S.weapon === 'katana') { if (playSfx('swordSwing', { rate: 0.9 + Math.random() * 0.3, volume: 0.45 })) return; }
 }
 function sfxBlock() {                                                    // 防御（格挡 / 盾挡随机）
   const n = Math.random() < 0.5 ? 'block' : 'parry';
-  if (playSfx(n, { variation: 0.15, volume: 0.85 })) return;
-  tone(180, 0.08, 'triangle', 0.2, 0, 120);
+  if (playSfx(n, { variation: 0.15, volume: 0.5 })) return;
+  tone(180, 0.08, 'triangle', 0.14, 0, 120);
 }
 function sfxStep() {                                                     // 移动脚步（低频）
-  playSfx('step', { variation: 0.2, volume: 0.4 });
+  playSfx('step', { variation: 0.2, volume: 0.22 });
 }
 function sfxKill() {
-  playSfx('punchCombo', { variation: 0.12, volume: 0.75 });
-  tone(120, 0.18, 'sawtooth', 0.3, 0, 60);
+  playSfx('punchCombo', { variation: 0.12, volume: 0.45 });
+  tone(120, 0.18, 'sawtooth', 0.2, 0, 60);
 }
 function sfxDodge() {
-  if (playSfx('dash', { variation: 0.2, volume: 0.8 })) return;
-  tone(700, 0.12, 'sine', 0.18, 0, 1500);
+  if (playSfx('dash', { variation: 0.2, volume: 0.45 })) return;
+  tone(700, 0.12, 'sine', 0.12, 0, 1500);
 }
 
 // 丧尸嘶吼：按品类映射到不同声音，仅在受击时触发、音量随距离衰减
 let lastStepAt = -1e9, lastGroanAt = -1e9;
 const ZOMBIE_SOUNDS = {
-  walker:  ['zb1', 'zb2', 'zb3', 'zombieGroan'],
-  runner:  ['zb4', 'zb5', 'zb6', 'squeak'],
+  walker:  ['zombieGroan'],
+  runner:  ['zombieGroan', 'squeak'],
   brute:   ['growl', 'roar'],
   crawler: ['squeak', 'goblin', 'ghost'],
   hunter:  ['wolf', 'growl', 'ghost'],
@@ -1745,11 +2729,11 @@ const ZOMBIE_SOUNDS = {
 };
 function playZombieGroan(arch, dist) {
   const now = S.time;
-  if (now - lastGroanAt < 0.06) return;          // 轻微节流，避免 AOE 同时命中多只时炸耳
+  if (now - lastGroanAt < 0.35) return;          // 节流：AOE 同时命中多只时不要叠成一团噪音
   lastGroanAt = now;
   const pool = ZOMBIE_SOUNDS[arch] || ['zombieGroan', 'growl'];
   const name = pool[Math.floor(Math.random() * pool.length)];
-  const vol = THREE.MathUtils.clamp(1.3 - dist / 6, 0.2, 1.0);
+  const vol = THREE.MathUtils.clamp(0.62 - dist / 14, 0.10, 0.45);   // 压低音量：音效只做点缀，不盖住配乐
   playSfx(name, { variation: 0.25, volume: vol });
 }
 function sfxStreak(tier) {
@@ -1892,12 +2876,20 @@ function registerEvade(nearMin) {
   EVADE.combo++;
   S.dodges++;
   sfxDodge();
-  if (nearMin !== undefined && nearMin < 1.1 && now - (EVADE._lastNear || -1e9) > 4) {
-    EVADE._lastNear = now;
-    showStreak({ zh: '命悬一线！', en: 'CLOSE CALL' }, $('punchStreak'), '#ff3b30');
-    sfxStreak(2); S.shake = Math.max(S.shake, 0.5);
-  }
   evaluateEvade();
+}
+// 残血判定：血量掉到 30% 以下时触发一次「残血！」提示（取代原先的擦身而过闪避提示）
+const LOW_HP_TRIGGER = 0.30;
+function checkLowHP() {
+  if (S.health <= 0 || S.over) return;
+  const ratio = S.health / S.maxHealth;
+  if (ratio <= LOW_HP_TRIGGER && !S._lowShown) {
+    S._lowShown = true;
+    showStreak({ zh: '残血！', en: 'WOUNDED' }, $('punchStreak'), '#ff3b30');
+    sfxStreak(2); S.shake = Math.max(S.shake, 0.5);
+  } else if (ratio > LOW_HP_TRIGGER + 0.12 && S._lowShown) {
+    S._lowShown = false;   // 回血到安全线以上后，下次再掉进残血可以再次提示
+  }
 }
 function evaluateEvade() {
   for (let i = 0; i < EVADE_MILESTONES.length; i++) {
@@ -1970,34 +2962,70 @@ function registerWallHit() {
 /* ============================================================
    遭遇战阶段机
 ============================================================ */
-function waveSize(idx) { return Math.min(1 + idx, 8); }
-
-function pickArch(idx) {
-  const r = Math.random();
-  if (idx === 0) return 'walker';
-  if (idx >= 5 && r < 0.08) return 'titan';      // 巨无霸（后期）
-  if (idx >= 3 && r < 0.16) return 'brute';      // 坦克
-  if (idx >= 3 && r < 0.26) return 'hunter';     // 猎杀者
-  if (idx >= 2 && r < 0.38) return 'crawler';    // 爬行者
-  if (idx >= 1 && r < 0.60) return 'runner';     // 疾速
-  return 'walker';
+// 一波丧尸的数量：前期少量教学，中后期数量暴涨（割草爽感的来源）
+function waveSize(idx) {
+  if (idx < 6) return 2 + idx;                                  // 第1~6波：2,3,4,5,6,7 只
+  return Math.min(8 + Math.floor((idx - 6) * 1.7), 20);         // 之后每波多约 2 只，最多 20 只
 }
+
+// 一波里精英（坦克/巨无霸）的数量：后期稳定来 1~2 只「难打的」，其余全是杂兵
+function eliteCount(idx) {
+  if (idx < 4) return 0;
+  if (idx < 8) return 1;
+  return Math.min(1 + Math.floor((idx - 8) / 6), 2);
+}
+
+// 组成一波：先铺精英，再填杂兵，保证「很多杂兵 + 偶尔几个难打的」
+function buildWave(idx, n) {
+  const list = [];
+  const elites = eliteCount(idx);
+  for (let i = 0; i < elites; i++) {
+    list.push(idx >= 7 && Math.random() < 0.45 ? 'titan' : 'brute');
+  }
+  while (list.length < n) {
+    const r = Math.random();
+    if (idx === 0) list.push('walker');
+    else if (idx >= 3 && r < 0.07) list.push('hunter');
+    else if (idx >= 2 && r < 0.22) list.push('crawler');
+    else if (idx >= 1 && r < 0.52) list.push('runner');
+    else list.push('walker');
+  }
+  // 打散顺序，避免精英永远排在第一个（避免一开场就被巨无霸糊脸）
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = list[i]; list[i] = list[j]; list[j] = t;
+  }
+  return list;
+}
+
 
 function startEncounter() {
   S.phase = 'combat';
   const n = waveSize(S.encounterIndex);
-  const z0 = S.playerZ - 8 - Math.random() * 6;   // 丧尸在玩家前方 8~14 米生成
-  const spread = Math.min(1.7, 9 / n);
+  const z0 = S.playerZ - 9 - Math.random() * 5;   // 丧尸在玩家前方 9~14 米生成
+  const wave = buildWave(S.encounterIndex, n);
   const newArchs = [];
+  // 数量多时排成多排纵深，避免全部挤成一条线
+  const perRow = Math.max(4, Math.min(7, Math.ceil(n / 3)));
+  const rowGap = 1.9;
   for (let i = 0; i < n; i++) {
-    const arch = pickArch(S.encounterIndex);
+    const arch = wave[i];
     if (!S.seenArchs.has(arch)) { S.seenArchs.add(arch); newArchs.push(arch); }
-    const x = n === 1 ? (Math.random() * 2 - 1) * 1.5 : (i - (n - 1) / 2) * spread;
-    spawnZombie(arch, x, z0 - Math.random() * 5);
+    const row = Math.floor(i / perRow);
+    const idxInRow = i % perRow;
+    const cntInRow = Math.min(perRow, n - row * perRow);
+    const spread = Math.min(1.8, 8.5 / Math.max(1, cntInRow));
+    const x = cntInRow === 1 ? (Math.random() * 2 - 1) * 1.5
+                              : (idxInRow - (cntInRow - 1) / 2) * spread + (Math.random() - 0.5) * 0.6;
+    spawnZombie(arch, x, z0 - row * rowGap - Math.random() * 1.4);
   }
   S.waveLabel = '第 ' + (S.encounterIndex + 1) + ' 波 · ' + n + ' 只丧尸';
   announce(S.waveLabel, '#ff5f4a');
   S.shake = Math.max(S.shake, 0.25);
+  // 大波次尸潮提示（数量越多越吓人）
+  if (n >= 10) {
+    enqueueToast('🌊 尸潮来袭 · ' + n + ' 只', '数量众多但都是杂兵 · 用范围武器清场，精英才是硬骨头', '#ff5f4a');
+  }
   // 首次出现的新丧尸品类 → 大提示（注意前方 + 特性）
   for (const arch of newArchs) {
     const intro = ZOMBIE_INTRO[arch];
@@ -2005,14 +3033,15 @@ function startEncounter() {
   }
 }
 
-function unlockKatana() {
-  if (S.katanaUnlocked) return;
-  S.katanaUnlocked = true;
-  S.katanaForm = 0;
-  switchWeapon('katana');
-  announce('第 3 波通关 · 解锁武士刀！', '#ffd60a');
+// 通用解锁：通关某波后获得对应武器（unlock 波次见 WEAPONS 表）
+function unlockWeapon(w) {
+  if (S.unlocked.has(w)) return;
+  S.unlocked.add(w);
+  S.weaponForm = 0;
+  switchWeapon(w);
+  announce('第 ' + WEAPONS[w].unlock + ' 波通关 · 解锁' + WEAPONS[w].name + '！', '#ffd60a');
   if (phoneWs && phoneWs.readyState === 1) {
-    phoneWs.send(JSON.stringify({ type: 'unlock', w: 'katana', unlocked: true }));
+    phoneWs.send(JSON.stringify({ type: 'unlock', w, unlocked: true }));
   }
 }
 
@@ -2020,22 +3049,1046 @@ function startClear() {
   S.phase = 'clear';
   S.clearTimer = 1.4;
   S.health = S.maxHealth;   // 过完一关自动恢复满血
-  if (S.encounterIndex === 2) unlockKatana();   // 清掉第 3 波后获得武士刀
+  const clearedWave = S.encounterIndex + 1;   // 刚清掉的波次（1-indexed）
+  const w = Object.keys(WEAPONS).find(k => WEAPONS[k].unlock === clearedWave);
+  if (w) unlockWeapon(w);
   else announce('清场！满血恢复', '#7cfc00');
 }
 
 /* ============================================================
+   武器 / 僵尸 / 机制 资料库（帮助页 + 选武器页共用）
+============================================================ */
+const WEAPON_INFO = {
+  fist: {
+    icon: '👊', name: '拳头', unlock: '初始可用', tag: '近战 · 基础输出',
+    stats: '伤害 42 · 射程 1.5m · 扇形 0.85 · 出手 0.34s',
+    moves: [
+      ['出拳', '腕-肩距离骤增 + 上升速度 > 1.6 肩宽/秒'],
+      ['主拳手判定', '伸直程度更大的一只手（离同侧肩更远）'],
+      ['方向判定', '手腕相对静止基准的位移 → 直拳 / 勾拳 / 上勾拳'],
+    ],
+    gesture: '单手握拳，快速向镜头出拳。手臂必须「伸直」（腕-肩距离冲到 1.0~1.4 肩宽）且「够快」（上升速度 > 1.6 肩宽/秒），静止待机不会误触。',
+    muscles: ['胸大肌', '三角肌前束', '肱三头肌', '核心稳定肌群'],
+    feat: '0.8 秒内连续出拳叠加连招：2 拳「双拳连击」85 → 3 拳「疯狂连击」140 → 4 拳「重拳终结」220。',
+  },
+  gun: {
+    icon: '🔫', name: '双枪', unlock: '初始可用', tag: '远程 · 双持',
+    stats: '伤害 38 · 弹速 46m/s · 射程 30m · 单手冷却 0.18s',
+    moves: [
+      ['摇臂射击', '像摇晃手机一样上下晃动小臂，单程位移 ≥ 0.26 肩宽'],
+      ['左右任一', '左手、右手都能单独开火'],
+      ['双枪齐射', '两只手同时摇 → 左右同时开火（双发）'],
+      ['方向翻转', '手臂方向反转一次 = 触发一枪'],
+    ],
+    gesture: '双手像摇晃手机一样上下晃动小臂，每完成一次「上→下」或「下→上」的往返就开一枪。左右手各自独立计时，可以单手开火，也可以双手同时摇动齐射。',
+    muscles: ['三角肌后束', '肱二头肌', '腕部稳定肌群', '前锯肌'],
+    feat: '单手冷却最短（0.18s），是清理成群小兵与远程点杀 BOSS 小兵的效率武器，代价是几乎没有近身防护。',
+  },
+  katana: {
+    icon: '🗡️', name: '武士刀', unlock: '第 3 波', tag: '近战 · 主力输出',
+    stats: '斜劈 80 / 竖砍 125 / 捅刺 102',
+    moves: [
+      ['斜劈', '双手握拳并拢后斜向挥动（横移为主）'],
+      ['竖砍', '双手握拳并拢后从上往下劈落'],
+      ['捅刺', '双手握拳并拢后向前直推（手臂伸直）'],
+    ],
+    gesture: '双手握拳靠拢成「握刀」姿态（两腕间距 < 0.9 肩宽、指尖收拢），系统跟踪双手中点的运动轨迹自动分辨三式。',
+    muscles: ['腹斜肌', '背阔肌', '股四头肌', '握力肌群'],
+    feat: '三式差异极大：斜劈横扫群敌、竖砍 125 重击破甲、捅刺直线穿透。竖砍与斜劈都有破甲加成，对精英效果拔群。',
+  },
+  staff: {
+    icon: '🥢', name: '长棍', unlock: '第 5 波', tag: '近战 · 清群',
+    stats: '横扫 56 / 下劈 52 / 戳刺 40',
+    moves: [
+      ['横扫', '双手握棍横向大幅摆动'],
+      ['下劈', '双手握棍从上往下砸落'],
+      ['戳刺', '双手握棍向前直推'],
+    ],
+    gesture: '与武士刀同源的双手握持识别（两腕并拢 + 指尖收拢），靠双手中点轨迹分辨横扫 / 下劈 / 戳刺。',
+    muscles: ['腹斜肌', '肩袖肌群', '核心旋转肌群', '股四头肌'],
+    feat: '横扫扇形最宽（0.60）+ 溅射 1.9m，一招能扫倒一圈杂兵，破甲 ×1.4 也能啃精英。',
+  },
+  hammer: {
+    icon: '🔨', name: '战锤', unlock: '第 7 波', tag: '近战 · 重击破甲',
+    stats: '下砸 78（破甲 ×1.5） / 侧抡 76（破甲 ×1.4）',
+    moves: [
+      ['蓄力', '右臂大臂抬高（手腕高于肩线）'],
+      ['下砸', '手从高处快速落到肩部以下'],
+      ['侧抡', '手臂向侧面大幅抡出（横向位移 > 1.6 肩宽）'],
+    ],
+    gesture: '右臂抬高（手腕高过肩线即可，不需要举过头顶也不需要握拳）开始蓄力，蓄力期间屏幕下方一直显示「蓄力中」和进度条；然后手快速下落＝下砸，或向侧方大力抡出＝侧抡。',
+    muscles: ['三角肌', '斜方肌', '竖脊肌', '股四头肌'],
+    feat: '破甲倍率全场最高（1.4~1.5），是打坦克丧尸 / 巨无霸的主武器，但出手慢（0.60~0.72s），被围时很吃亏。',
+  },
+  daggers: {
+    icon: '🔪', name: '双匕首', unlock: '第 9 波', tag: '近战 · 极速',
+    stats: '连割 15 / 双刺 30（破甲 ×1.3）',
+    moves: [
+      ['连割', '双手在胸前交错快速划动'],
+      ['双刺', '双手快速合拢并向前刺出（间距 < 0.7 肩宽）'],
+    ],
+    gesture: '双手同时抬到胸前高度（离胸口 < 0.5 肩宽）并快速划动；划动时双手越靠近＝双刺，越交错＝连割。',
+    muscles: ['前臂屈肌群', '腕部肌群', '肱三头肌', '前锯肌'],
+    feat: '出手最快（0.16s），靠高频连割在单位时间内堆出最多顿感与多杀特效；单发伤害低，需要靠节奏补。',
+  },
+  whip: {
+    icon: '🪢', name: '鞭子', unlock: '第 11 波', tag: '远程 · 抽打',
+    stats: '伤害 30 · 射程 5.0m · 扇形 0.90',
+    moves: [
+      ['甩臂', '右臂从身侧向前快速甩出'],
+      ['抽打', '手腕离肩距离骤增（速度 > 3.2 肩宽/秒）'],
+    ],
+    gesture: '右臂从身侧向前快速甩出一次即完成一次抽打，不需要蓄力。判定看的是「手臂甩出的速度」，甩得越快越容易命中。',
+    muscles: ['背阔肌', '肩袖肌群', '腕伸肌群', '三角肌'],
+    feat: '射程 5m 的远程近战武器，可以在怪群外圈抽打；伤害低，靠距离换安全。',
+  },
+  bow: {
+    icon: '🏹', name: '弓箭', unlock: '第 14 波', tag: '远程 · 固定伤害',
+    stats: '伤害 62 · 射速 ~1.8 发/秒 · 每箭伤害固定',
+    moves: [
+      ['扯线', '任意一只手向后收到脸/肩附近（离肩 < 0.9 肩宽）'],
+      ['送出', '手臂重新伸直向外（离肩 > 0.95 肩宽）→ 完成一个来回，射出一支箭'],
+    ],
+    gesture: '随便哪只手都可以：把手臂向后扯（收到脸旁）再送出去，如此完成一个完整来回就射出一支箭。左撇子右撇子都行，每一箭的伤害都一样。',
+    muscles: ['背阔肌', '后三角肌', '肱二头肌', '肩胛稳定肌'],
+    feat: '每箭伤害固定，不存在蓄力门槛，节奏全由玩家自己控制；最远单体精准，适合打精英与 BOSS 小兵。',
+  },
+  flail: {
+    icon: '⚒️', name: '流星锤', unlock: '第 17 波', tag: '近战 · 大范围',
+    stats: '伤害 55 · 射程 3.0m · 每次伤害固定',
+    moves: [
+      ['伸臂', '手臂伸直（手腕离肩 > 1.05 肩宽）'],
+      ['转圈', '手臂绕着肩膀转一整圈（累计 360°）'],
+      ['抽击', '转满一圈 = 一次环形 AOE 抽击'],
+    ],
+    gesture: '手臂伸直后像拧麻绳一样绕着肩膀转一整圈，转满 360° 就完成一次大范围抽击。不需要蓄力，每一次抽击的伤害都相同。',
+    muscles: ['三角肌', '腹斜肌（爆发转身）', '斜方肌', '心肺耐力'],
+    feat: '转一圈 = 一次 360° 环形 AOE，是 BOSS 战抢狂暴窗口输出的最佳选择之一；但抡空会反噬 6 点伤害。',
+  },
+};
+
+const ZOMBIE_INFO = {
+  walker:  { icon: '🧟', name: '普通丧尸', hp: 100, speed: 1.7,  scale: 1.0,  dmg: 12, elite: false, kind: '杂兵' },
+  runner:  { icon: '🏃', name: '疾速丧尸', hp: 85,  speed: 3.4,  scale: 0.88, dmg: 8,  elite: false, kind: '杂兵' },
+  crawler: { icon: '🐊', name: '爬行者',   hp: 65,  speed: 4.4,  scale: 0.62, dmg: 6,  elite: false, kind: '杂兵' },
+  hunter:  { icon: '👁️', name: '猎杀者',   hp: 130, speed: 2.6,  scale: 1.05, dmg: 16, elite: false, kind: '杂兵' },
+  brute:   { icon: '🗿', name: '坦克丧尸', hp: 190, speed: 1.15, scale: 1.35, dmg: 22, elite: true,  kind: '精英' },
+  titan:   { icon: '🦍', name: '巨无霸',   hp: 290, speed: 0.95, scale: 1.6,  dmg: 30, elite: true,  kind: '精英' },
+};
+
+const MECH_INFO = {
+  growth: [
+    ['杂兵血量成长', '每波 +1.8%（HP_GROW_TRASH）', '第 20 波普通丧尸只有 134 血，后期依然两三刀清一只，爽感来自数量不是血条'],
+    ['精英血量成长', '每波 +5%（HP_GROW_ELITE）', '第 20 波巨无霸 527 血，是货真价实的硬骨头，需要破甲与狂暴窗口'],
+    ['敌人伤害成长', '每波 +5%（DMG_GROW）', '保证后期被咬仍然疼'],
+    ['敌人移速成长', '每波 +3%（SPD_GROW）', '压迫感随进度提升'],
+  ],
+  wave: [
+    ['前期波次', '第 1~6 波：2 → 7 只', '教学节奏，一对一也能打，每只普通丧尸约 3 拳'],
+    ['后期波次', '第 7 波起每波 +2 只，最多 20 只', '后期靠「数量多」制造割草爽感'],
+    ['精英配额', '第 5 波起 1 只，第 9 波起 1~2 只', '始终只有个别「难打的」，其余全是好清的杂兵'],
+    ['排布方式', '每排 4~7 只，多排纵深推进', '避免所有丧尸挤成一条线被一招清空'],
+  ],
+  combat: [
+    ['扇形判定', 'arc = 向前夹角的余弦阈值', 'arc 越大扇形越窄；捅刺 0.93 ≈ 一条直线'],
+    ['贴脸全向', '距离 < 1.7m 无视方位必定命中', '体感原地出拳也能打到身侧的怪，不会出现「被咬却打不到」'],
+    ['溅射', '扇形外 aoe 半径内吃 splash 比例伤害', '横扫清群的核心机制'],
+    ['破甲', 'armorBonus 只对精英生效', '竖砍 / 战锤 / 横扫能破坦克护甲'],
+    ['击退', 'side 横飞 / back 后退 / pierce 穿透', '体型越大越抗打飞'],
+  ],
+  juice: [
+    ['顿感 Hitstop', '命中瞬间时间缩放到 0.62 倍', '0.008~0.05s，极短促。早期版本是 0.035 倍的「定格」，会明显卡顿，现已改为轻顿感'],
+    ['慢动作 Slowmo', '多杀 ≥3 时降到 0.32~0.42 倍', '连杀里程碑的仪式感'],
+    ['镜头推拉 FOV', '命中推近至 57° 再弹回 62°', '推拉与震屏叠加产生冲击'],
+    ['方向性震屏', '按受力方向偏移镜头', '打飞的方向与镜头反馈一致'],
+    ['伤害飘字', '世界坐标投影到屏幕的 DOM 元素池', '大伤害自动放大字号'],
+    ['受击白闪', '白色瞬时爆亮叠加在受击红上', '先爆白再转红，命中瞬间最刺眼'],
+    ['碎肉 / 血迹 / 冲击环', '抛物线碎肉块 + 地面贴花 + 扩散光环', '尸体被抛飞翻滚倒地，强化「打飞」'],
+    ['多杀冲击线', '一次劈倒 ≥3 只时全屏放射线炸开', '割草爽感的高潮点'],
+  ],
+  survival: [
+    ['离散撕咬', '每只丧尸 0.9~1.4s 咬一次', '不再每帧持续掉血，20 只围攻也不会瞬间融化'],
+    ['全局无敌帧', '受伤后 0.55s 内免疫', '保证「至少掉一次血」而不是被连续咬'],
+    ['围攻倍率', '身边 1 只 ×1.0 → 12 只及以上 ×2.32', '单只杂兵几乎无威胁，成群贴身才致命'],
+    ['精英不吃倍率', '精英靠血厚吓人，不靠一口咬死', '避免「打不死又咬死」的死循环'],
+    ['脱战回血', '闯关 4 秒后 +4 HP/s；BOSS 战 2.5 秒后 +9.2 HP/s', '突围即可回复，是核心生存策略'],
+    ['最大生命', '66 点（原 100 点，已下调 1/3）', '血更薄，容错更低，被围时更容易真的死掉'],
+    ['残血提示', '血量掉到 30% 以下时弹出「残血！」', '取代原先的「擦身而过」闪避提示'],
+    ['血条显示', '只有被打过的丧尸才显示血条', '20 只怪时画面不会被血条糊死'],
+  ],
+};
+
+/* ============================================================
+   界面管理（主菜单 / 帮助 / 选武器 / 游戏）
+============================================================ */
+const scrMenu = $('menu'), scrBossPick = $('bossPick'), scrTrainPick = $('trainPick'),
+      scrHelp = $('help');
+const ALL_SCREENS = [scrMenu, scrBossPick, scrTrainPick, scrHelp, overScr];
+function showScreen(el) {
+  for (const s of ALL_SCREENS) if (s) s.style.display = (s === el) ? 'flex' : 'none';
+}
+function hideAllScreens() { for (const s of ALL_SCREENS) if (s) s.style.display = 'none'; }
+
+/* ============================================================
    伤害 / 难度
 ============================================================ */
-function damagePlayer(d) {
+function damagePlayer(d, elite = false) {
   if (S.defending) d *= 0.2;   // 双臂交叉防御：减伤 80%
+  // 受伤无敌帧：被围时不会被瞬间融化（一小段时间内只结算第一次伤害）
+  if (S.hurtCd > 0) return false;
+  S.hurtCd = 0.55;
+  // 围攻威胁分级：身边丧尸越多，单次撕咬越疼（但有硬上限，绝不一下掉光）
+  //   1 只 → ×1.00   5 只 → ×1.48   12 只及以上 → ×2.32（并受 18 点封顶）
+  // 设计意图：单只杂兵几乎不构成威胁（可边打边聊），成群贴身才会真正致命；
+  //           玩家可以「突围 → 脱离 4 秒 → 回血」来化解，正面硬刚必死。
+  // 注意：精英不吃这个倍率 —— 精英靠「血厚难杀」吓人，不靠一口咬死人，
+  //       否则两只精英贴身就是必死局（打不死又咬死）。
+  let near = 0;
+  if (!elite) {
+    for (const zz of zombies) {
+      if (zz.state === 'die') continue;
+      if (Math.hypot(zz.x - S.playerX, zz.z - S.playerZ) < 3.0) near++;
+    }
+  }
+  const crowd = elite ? 1 : 1 + Math.min(Math.max(near - 1, 0), 11) * 0.12;
+  // 单次伤害封顶：即使被十几只同时咬，也不会一下掉光
+  d = Math.min(d * crowd, 18);
   S.health -= d;
   S.hitFlash = 0.7;
   S.lastDamagedAt = S.time;   // 记录受伤时间，重置回血计时
   S.killStreak = 0; S.streakTier = -1;   // 受伤打断连杀
+  checkLowHP();               // 残血提示（血量掉到 30% 以下）
   vignette.style.opacity = '0.9';
   S.shake = Math.max(S.shake, 0.4);
+  S.shakeX = Math.max(-0.4, Math.min(0.4, S.shakeX + (Math.random() - 0.5) * 0.3));
   if (S.health <= 0) { S.health = 0; gameOver(); }
+  return true;
+}
+
+/* ============================================================
+   BOSS 战：缝合巨兽
+   —— 血超厚的巨型丧尸。会召唤不同种类的小兵、从某一路发射飞行冲击波。
+   —— 主角平时打不到它（只能打小兵），打满狂怒条后开启「狂暴时刻」：
+      小兵全部消失、BOSS 动作极缓慢且无法攻击，主角可以随意输出 10 秒。
+   —— 全程约需 10 次狂暴时刻才能打死 BOSS。
+============================================================ */
+const BOSS_LANES = [-4, -2, 0, 2, 4];   // 冲击波可能出现的 5 条「路」
+const BOSS_HP = 7500;                   // 需要约 10~12 次狂暴（1 段血条 ≈ 1 次狂暴的输出量）时刻
+const BOSS_Z0 = -13;                    // BOSS 初始站位
+const RAGE_PER_TRASH = 10;              // 击杀杂兵获得的狂怒
+const RAGE_PER_ELITE = 18;              // 击杀精英获得的狂怒
+const RAGE_PER_WAVE = 15;               // 打爆冲击波获得的狂怒
+
+let bossMesh = null;
+
+/* --- BOSS 模型：巨型缝合丧尸 --- */
+function buildBossMesh() {
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0x74866c, roughness: 0.92 });
+  const shirtMat = new THREE.MeshStandardMaterial({ color: 0x2b3038, roughness: 0.85, metalness: 0.2 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1b1f26, roughness: 0.92 });
+  const h = buildHumanoid({ skinMat, shirtMat, pantsMat, bootMat: MAT.boot, torsoW: 0.62, torsoH: 0.66 });
+  const root = new THREE.Group();
+  root.add(h.root);
+  root.scale.setScalar(2.6);
+  // 肩甲
+  const padGeo = new THREE.BoxGeometry(0.34, 0.16, 0.32);
+  const padMat = new THREE.MeshStandardMaterial({ color: 0x4a4f57, roughness: 0.45, metalness: 0.6 });
+  const pl = new THREE.Mesh(padGeo, padMat); pl.position.set(-0.30, 0.48, 0); h.torso.add(pl);
+  const pr = new THREE.Mesh(padGeo, padMat); pr.position.set(0.30, 0.48, 0); h.torso.add(pr);
+  // 背部骨刺
+  const spikeGeo = new THREE.ConeGeometry(0.07, 0.26, 6);
+  const spikeMat = new THREE.MeshStandardMaterial({ color: 0x9aa3b0, roughness: 0.35, metalness: 0.7 });
+  for (let i = 0; i < 5; i++) {
+    const sp = new THREE.Mesh(spikeGeo, spikeMat);
+    sp.position.set((i - 2) * 0.14, 0.40 + (i % 2) * 0.12, 0.2);
+    sp.rotation.x = -0.95;
+    h.torso.add(sp);
+  }
+  // 胸口缝合线
+  const stitchGeo = new THREE.BoxGeometry(0.5, 0.03, 0.03);
+  const stitchMat = new THREE.MeshStandardMaterial({ color: 0xb03030, roughness: 0.6 });
+  for (let i = 0; i < 4; i++) {
+    const st = new THREE.Mesh(stitchGeo, stitchMat);
+    st.position.set(0, 0.12 + i * 0.11, -0.15);
+    st.rotation.z = 0.2;
+    h.torso.add(st);
+  }
+  // 发光眼
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2a1a });
+  const eg = new THREE.SphereGeometry(0.05, 10, 8);
+  const e1 = new THREE.Mesh(eg, eyeMat); e1.position.set(-0.06, 0.14, -0.11); h.head.add(e1);
+  const e2 = new THREE.Mesh(eg, eyeMat); e2.position.set(0.06, 0.14, -0.11); h.head.add(e2);
+  // 头上骨冠
+  const crownGeo = new THREE.ConeGeometry(0.08, 0.3, 6);
+  const cMat = new THREE.MeshStandardMaterial({ color: 0x8d949f, roughness: 0.4, metalness: 0.65 });
+  for (let i = -1; i <= 1; i++) {
+    const c = new THREE.Mesh(crownGeo, cMat);
+    c.position.set(i * 0.1, 0.3, 0.02);
+    c.rotation.x = -0.35;
+    h.head.add(c);
+  }
+  scene.add(root);
+  return { root, h, skinMat, shirtMat, pantsMat, eyeMat };
+}
+
+function resetBossState() {
+  BOSS.active = true;
+  BOSS.hp = BOSS_HP; BOSS.maxHp = BOSS_HP;
+  BOSS.x = 0; BOSS.z = BOSS_Z0;
+  BOSS.phase = 'advance'; BOSS.phaseT = 0;
+  BOSS.nextAction = 3.4; BOSS.actionCount = 0;
+  BOSS.summonCd = 0; BOSS.summonedTotal = 0;
+  BOSS.waveCd = 0;
+  for (const w of BOSS.waves) removeWave(w);
+  BOSS.waves.length = 0;
+  BOSS.rage = 0; BOSS.rageMax = 100;
+  BOSS.berserk = 0; BOSS.berserkCount = 0;
+  BOSS.bossDamageTaken = 0; BOSS.progress = 0;
+  BOSS.sayCd = 0;
+  if (!bossMesh) bossMesh = buildBossMesh();
+  bossMesh.root.visible = true;
+  bossMesh.root.position.set(BOSS.x, 0, BOSS.z);
+  bossMesh.root.rotation.set(0, Math.PI, 0);
+  // 血条分段刻度
+  const seg = $('bossSeg');
+  if (seg) {
+    seg.innerHTML = '';
+    for (let i = 1; i < BOSS_SEGMENTS; i++) {
+      const t = document.createElement('i');
+      t.style.left = (i / BOSS_SEGMENTS * 100) + '%';
+      seg.appendChild(t);
+    }
+  }
+}
+
+/* --- 飞行冲击波 --- */
+const waveGeo = new THREE.ConeGeometry(0.85, 1.5, 10);
+const waveMat = new THREE.MeshBasicMaterial({ color: 0xff6a3d, transparent: true, opacity: 0.9 });
+const waveCoreGeo = new THREE.ConeGeometry(0.42, 1.9, 8);
+const waveCoreMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0 });
+const laneGeo = new THREE.PlaneGeometry(1.9, 26);
+const laneMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.0, depthWrite: false });
+
+function spawnWave(laneIdx, delay) {
+  const g = new THREE.Group();
+  const cone = new THREE.Mesh(waveGeo, waveMat);
+  cone.rotation.x = -Math.PI / 2;
+  cone.position.y = 0.8;
+  g.add(cone);
+  const core = new THREE.Mesh(waveCoreGeo, waveCoreMat);
+  core.rotation.x = -Math.PI / 2;
+  core.position.y = 0.8;
+  g.add(core);
+  // 地面预警光带（这一路会飞来）
+  const lane = new THREE.Mesh(laneGeo, laneMat.clone());
+  lane.rotation.x = -Math.PI / 2;
+  lane.position.set(0, 0.03, 0);
+  g.add(lane);
+  g.position.set(BOSS_LANES[laneIdx], 0, BOSS.z + 2.5);
+  scene.add(g);
+  const w = {
+    g, lane: BOSS_LANES[laneIdx], z: BOSS.z + 2.5, v: 7 + BOSS.progress * 6,
+    hp: 55 + BOSS.progress * 70, maxHp: 55 + BOSS.progress * 70,
+    delay: delay, dead: false, spin: Math.random() * 6,
+  };
+  BOSS.waves.push(w);
+  return w;
+}
+
+function removeWave(w) {
+  if (w.g && w.g.parent) scene.remove(w.g);
+  if (w.g) {
+    w.g.traverse(o => { if (o.material && o.material !== laneMat && o.material !== waveMat && o.material !== waveCoreMat) o.material.dispose(); });
+  }
+  w.dead = true;
+}
+
+function destroyWave(w) {
+  if (w.dead) return;
+  const p = new THREE.Vector3(w.lane, 0.9, w.z);
+  burstBlood(p, 20, 0, 1);
+  burstGore(p, 5, 0, 1);
+  spawnHitRing(w.lane, 0.9, w.z, 0xff9d4a, 1.8);
+  removeWave(w);
+  BOSS.rage = Math.min(BOSS.rageMax, BOSS.rage + RAGE_PER_WAVE);
+  popDamageNumber(p, '破', 'big');
+  hitStop(0.018);
+  kickScreen(0, 1, 0.5);
+}
+
+/* --- BOSS 行动：召唤 / 冲击波 / 震地 --- */
+const BOSS_LINES = [
+  '缝合巨兽 · 苏醒了',
+  '缝合巨兽 · 血量厚得离谱',
+  '缝合巨兽 · 开始召唤小兵',
+  '缝合巨兽 · 冲击波来了！换一条路',
+  '缝合巨兽 · 越打越快',
+  '缝合巨兽 · 快撑不住了',
+];
+
+function bossSummon() {
+  const p = BOSS.progress;
+  const n = 2 + Math.floor(p * 4 + Math.random() * 1.6);   // 2~7 只
+  BOSS.summonedTotal += n;
+  const kinds = ['walker', 'runner'];
+  if (p > 0.12) kinds.push('crawler', 'runner');
+  if (p > 0.28) kinds.push('hunter');
+  if (p > 0.45) kinds.push('brute');
+  if (p > 0.65) kinds.push('titan');
+  for (let i = 0; i < n; i++) {
+    const arch = kinds[Math.floor(Math.random() * kinds.length)];
+    const x = (Math.random() * 2 - 1) * 3.6;
+    const z = BOSS.z + 3 + Math.random() * 3;
+    spawnZombie(arch, x, z);
+  }
+  spawnHitRing(0, 0.4, BOSS.z + 3, 0x9dff3a, 3.2);
+  announce('缝合巨兽召唤了 ' + n + ' 只小兵', '#9dff3a');
+}
+
+function bossFireWave() {
+  const p = BOSS.progress;
+  // 优先打玩家当前所在的那一路（但给 0.9 秒预警）
+  const cur = Math.round((S.playerX + 4) / 2);
+  const laneIdx = Math.max(0, Math.min(BOSS_LANES.length - 1, cur));
+  spawnWave(laneIdx, 0.9);
+  if (p > 0.45) {
+    // 后期会同时打两路
+    let other = laneIdx + (Math.random() < 0.5 ? 1 : -1) * (1 + Math.floor(Math.random() * 3));
+    other = Math.max(0, Math.min(BOSS_LANES.length - 1, other));
+    if (other !== laneIdx) spawnWave(other, 0.9 + Math.random() * 0.5);
+  }
+  announce('⚠️ 冲击波 · 换路闪避（也可以打爆它）', '#ff9d4a');
+}
+
+function bossSlam() {
+  // 近身震地：BOSS 猛砸地面，靠近的玩家受伤
+  const d = Math.hypot(S.playerX - BOSS.x, S.playerZ - BOSS.z);
+  spawnHitRing(BOSS.x, 0.3, BOSS.z, 0xff3b30, 4.5);
+  spawnShockwave();
+  S.shake = Math.max(S.shake, 0.9);
+  if (d < 6.5) damagePlayer(20 + BOSS.progress * 8, true);
+  announce('缝合巨兽猛砸地面！', '#ff5f4a');
+}
+
+/* --- 狂暴时刻：小兵全灭 + BOSS 破绽 --- */
+function triggerBerserk() {
+  if (BOSS.berserk > 0 || BOSS.rage < BOSS.rageMax) return;
+  BOSS.rage = 0;
+  BOSS.berserk = BOSS.berserkWindow;
+  BOSS.berserkCount++;
+  // 很酷地让所有小兵消失
+  let n = 0;
+  for (const zz of zombies.slice()) {
+    if (zz.state === 'die') continue;
+    const p = zz.h.root.position.clone().add(new THREE.Vector3(0, 1.0 * zz.scale, 0));
+    burstBlood(p, 24, 0, 0);
+    burstGore(p, 5, 0, 0);
+    spawnHitRing(zz.x, 1, zz.z, 0xffd60a, 1.8);
+    despawnZombie(zz);
+    n++;
+  }
+  BOSS.waves.forEach(removeWave);
+  BOSS.waves.length = 0;
+  // 极致的画面表现
+  flashHit(1);
+  JUICE.rays = 1;
+  slowmo(0.85, 0.22);
+  hitStop(0.06);
+  punchFov(FOV_BASE - 9);
+  S.shake = Math.max(S.shake, 1.2);
+  spawnHitRing(BOSS.x, 1.2, BOSS.z, 0xffd60a, 6);
+  spawnShockwave();
+  const bEl = $('berserk'), bTx = $('berserkTxt');
+  if (bEl) bEl.classList.add('on');
+  if (bTx) bTx.textContent = '狂 暴 时 刻';
+  setTimeout(() => { if (bEl) bEl.classList.remove('on'); }, 2400);
+  announce('🔥 狂暴时刻 · 10 秒！BOSS 已破绽', '#ffd60a');
+  enqueueToast('🔥 狂暴时刻', '小兵全部消失 · BOSS 无法行动 · 尽情输出！', '#ffd60a');
+  showStreak({ zh: '狂 暴', en: 'BERSERK' }, $('streak'), '#ffd60a');
+  sfxTitle();
+}
+
+/* --- 对 BOSS 造成伤害（仅狂暴时刻生效） --- */
+function hitBoss(dmg) {
+  if (!BOSS.active || BOSS.hp <= 0) return false;
+  if (BOSS.berserk <= 0) {
+    // 平时打不动：只有金属火花反馈
+    const p = new THREE.Vector3(BOSS.x, 1.9, BOSS.z + 1.4);
+    spawnHitRing(p.x, p.y, p.z, 0x9aa4b0, 0.7);
+    if (!BOSS._nopeCd || S.time - BOSS._nopeCd > 2) {
+      BOSS._nopeCd = S.time;
+      popDamageNumber(p, '硬', '');
+      announce('打不动！打满狂怒条开启狂暴时刻', '#9aa4b0');
+    }
+    return false;
+  }
+  const mult = 1 + 0.04 * BOSS.berserkCount;      // 主角随进度逐渐变强
+  const d = dmg * mult;
+  BOSS.hp = Math.max(0, BOSS.hp - d);
+  BOSS.bossDamageTaken += d;
+  BOSS.progress = 1 - BOSS.hp / BOSS.maxHp;
+  const p = new THREE.Vector3(BOSS.x, 1.9, BOSS.z + 1.3);
+  popDamageNumber(p, Math.round(d), d >= 100 ? 'huge' : 'big');
+  spawnHitRing(p.x, p.y, p.z, 0xffd60a, 1.0 + Math.min(2, d / 60));
+  burstBlood(p, 14, 0, 1);
+  kickScreen(0, 1, 0.5);
+  hitStop(Math.min(0.04, 0.012 + d / 1800));
+  if (BOSS.hp <= 0) bossDefeated();
+  return true;
+}
+
+function bossDefeated() {
+  BOSS.hp = 0;
+  BOSS.berserk = 0;
+  // 华丽的死亡：慢动作 + 连环爆炸
+  slowmo(1.6, 0.16);
+  flashHit(1);
+  S.shake = Math.max(S.shake, 1.4);
+  for (let i = 0; i < 10; i++) {
+    setTimeout(() => {
+      const p = new THREE.Vector3(BOSS.x + (Math.random() * 2 - 1) * 2, 0.6 + Math.random() * 3, BOSS.z + (Math.random() * 2 - 1) * 1.6);
+      burstBlood(p, 26, 0, 0);
+      burstGore(p, 6, 0, 0);
+      spawnHitRing(p.x, p.y, p.z, 0xffd60a, 2.4);
+      spawnShockwave();
+      sfxBoom();
+    }, i * 130);
+  }
+  setTimeout(() => {
+    if (bossMesh) bossMesh.root.visible = false;
+    BOSS.active = false;
+    bossVictory();
+  }, 1500);
+}
+
+/* --- BOSS 每帧更新 --- */
+function updateBoss(dt) {
+  if (!BOSS.active) return;
+  const slow = S.selectMode ? 0.10 : 1;   // 抱胸选择时，怪物攻击变得超级慢
+  const p = BOSS.progress;
+
+  // 狂暴倒计时
+  if (BOSS.berserk > 0) {
+    BOSS.berserk -= dt;
+    // 狂暴期间 BOSS 动作极缓慢且无法攻击
+    if (BOSS.berserk <= 0) {
+      BOSS.berserk = 0;
+      announce('狂暴结束 · BOSS 恢复行动', '#ff8a75');
+    }
+  }
+
+  if (BOSS.berserk > 0) {
+    // 狂暴：BOSS 扑到主角面前僵住（破绽）
+    const tz = S.playerZ - 3.0;
+    BOSS.z += (tz - BOSS.z) * Math.min(1, dt * 3.2);
+    BOSS.x += (S.playerX * 0.4 - BOSS.x) * Math.min(1, dt * 2.0);
+    bossMesh.h.root.rotation.x = 0.55;    // 弯腰吃痛
+    bossMesh.h.torso.rotation.x = 0.3;
+  } else {
+    // 常态：缓慢逼近并保持压迫距离
+    const want = S.playerZ - (5.6 + p * 0.4);
+    BOSS.z += (want - BOSS.z) * Math.min(1, dt * (0.25 + p * 0.25));
+    BOSS.x += (S.playerX * 0.25 - BOSS.x) * Math.min(1, dt * 0.5);
+    bossMesh.h.root.rotation.x *= Math.max(0, 1 - dt * 3);
+    bossMesh.h.torso.rotation.x *= Math.max(0, 1 - dt * 3);
+    // 行动调度
+    BOSS.nextAction -= dt * slow;
+    if (BOSS.nextAction <= 0) {
+      BOSS.actionCount++;
+      const roll = Math.random();
+      if (roll < 0.42) bossSummon();
+      else if (roll < 0.82) bossFireWave();
+      else bossSlam();
+      const base = 4.6 - p * 2.0;               // 随进度出招更快
+      BOSS.nextAction = base * (0.8 + Math.random() * 0.5);
+    }
+  }
+
+  // 位置与朝向
+  if (bossMesh) {
+    bossMesh.root.position.set(BOSS.x, 0, BOSS.z);
+    const yaw = Math.atan2(-(S.playerX - BOSS.x), -(S.playerZ - BOSS.z));
+    bossMesh.root.rotation.y = lerpAngle(bossMesh.root.rotation.y, yaw, Math.min(1, dt * 3));
+    // 待机呼吸 + 行走
+    const t = S.time;
+    const bob = Math.sin(t * 2.2) * 0.06;
+    bossMesh.h.pelvis.position.y = 0.98 + bob;
+    bossMesh.h.torso.rotation.x += 0.06 + Math.sin(t * 1.4) * 0.03;
+    bossMesh.h.armL.sh.rotation.x = 1.1 + Math.sin(t * 2.2) * 0.12;
+    bossMesh.h.armR.sh.rotation.x = 1.1 - Math.sin(t * 2.2) * 0.12;
+    bossMesh.h.legL.hip.rotation.x = Math.sin(t * 2.2) * 0.28;
+    bossMesh.h.legR.hip.rotation.x = -Math.sin(t * 2.2) * 0.28;
+    // 眼睛随进度由红转橙
+    bossMesh.eyeMat.color.setHSL(0.02 - p * 0.02, 1, 0.5 + p * 0.1);
+  }
+
+  // 台词播报
+  BOSS.sayCd -= dt;
+  if (BOSS.sayCd <= 0) {
+    BOSS.sayCd = 9;
+    const idx = Math.min(BOSS_LINES.length - 1, Math.floor(p * BOSS_LINES.length));
+    enqueueToast('👹 ' + BOSS_LINES[idx], '进度 ' + Math.round(p * 100) + '% · 已用狂暴 ' + BOSS.berserkCount + ' 次', '#ff5f4a');
+  }
+}
+
+/* --- 飞行冲击波每帧更新 --- */
+function updateBossWaves(dt) {
+  for (let i = BOSS.waves.length - 1; i >= 0; i--) {
+    const w = BOSS.waves[i];
+    if (w.delay > 0) {
+      w.delay -= dt;
+      const lm = w.g.children[2];
+      if (lm) lm.material.opacity = 0.10 + 0.22 * (1 - Math.max(0, w.delay) / 0.9);
+      continue;
+    }
+    w.z += w.v * dt;
+    w.spin += dt * 7;
+    w.g.position.z = w.z;
+    w.g.rotation.y = w.spin;
+    const lm = w.g.children[2];
+    if (lm) lm.material.opacity = 0.16;
+    // 撞到主角
+    if (Math.abs(S.playerZ - w.z) < 1.0 && Math.abs(S.playerX - w.lane) < 1.15) {
+      damagePlayer(16 + BOSS.progress * 10, true);
+      destroyWave(w);
+      continue;
+    }
+    // 冲过主角身后
+    if (w.z > S.playerZ + 8) { removeWave(w); continue; }
+  }
+  BOSS.waves = BOSS.waves.filter(w => !w.dead);
+}
+
+/* --- BOSS 战 HUD --- */
+function updateBossHUD() {
+  if (S.mode !== 'boss') return;
+  const bHud = $('bossHud'), rHud = $('rageHud');
+  if (bHud) bHud.style.display = 'block';
+  if (rHud) rHud.style.display = 'block';
+  const fill = $('bossFill');
+  if (fill) fill.style.width = (BOSS.hp / BOSS.maxHp * 100) + '%';
+  const hint = $('bossHint');
+  if (hint) {
+    hint.textContent = BOSS.berserk > 0
+      ? '🔥 狂暴中！剩余 ' + BOSS.berserk.toFixed(1) + ' 秒 · 尽情输出'
+      : '已用狂暴 ' + BOSS.berserkCount + ' / ~' + BOSS.berserkMax + ' 次 · 进度 ' + Math.round(BOSS.progress * 100) + '%';
+  }
+  const rFill = $('rageFill');
+  if (rFill) rFill.style.width = (BOSS.rage / BOSS.rageMax * 100) + '%';
+  const rReady = $('rageReady');
+  if (rReady) {
+    const can = BOSS.rage >= BOSS.rageMax && BOSS.berserk <= 0;
+    rReady.style.display = can ? 'block' : 'none';
+  }
+}
+
+/* --- 结算：击败 BOSS --- */
+function bossVictory() {
+  S.over = true; S.running = false;
+  stopMusic();
+  sfxTitle();
+  $('goFinal').textContent = '胜利 · VICTORY';
+  $('goBig').textContent = '缝合巨兽已被击倒';
+  $('foScore').textContent = S.score;
+  $('foKills').textContent = S.kills;
+  $('foDist').textContent = BOSS.berserkCount;
+  $('foDistLabel').textContent = '次狂暴';
+  $('foKcal').textContent = calcKcal();
+  $('foTime').textContent = fmtTime(S.time);
+  $('foKcalToday').textContent = '—';
+  $('foRun').textContent = '—';
+  $('foRunSub').textContent = 'BOSS 战不计入热量结算';
+  $('foRope').textContent = '—';
+  $('foRopeSub').textContent = '——';
+  $('foFood').textContent = '—';
+  $('foFoodSub').textContent = '——';
+  $('foFun').textContent = BOSS.berserkCount + ' 次';
+  $('foFunSub').textContent = '狂暴时刻次数 · 越少越高效';
+  const q = $('foQuips');
+  if (q) q.innerHTML = '<span class="q">缝合巨兽轰然倒地 🧟</span>';
+  const q1 = $('foQuip');
+  if (q1) q1.textContent = '你用 ' + BOSS.berserkCount + ' 次狂暴时刻把这头血牛拆成了零件。';
+  const grid = $('achGrid');
+  if (grid) {
+    grid.innerHTML = '<div class="ach new"><span class="ic">👹</span><span><span class="t">巨兽屠夫 ✨</span><span class="d">击败缝合巨兽</span></span></div>'
+      + '<div class="ach new"><span class="ic">🔥</span><span><span class="t">狂暴之心 ✨</span><span class="d">在 BOSS 战中开启狂暴时刻</span></span></div>';
+  }
+  const sum = $('achSummary');
+  if (sum) sum.textContent = 'BOSS 战成就已解锁';
+  overScr.style.display = 'flex';
+}
+
+/* ============================================================
+   主菜单 / 帮助 / 选武器页 / 抱胸武器转盘
+============================================================ */
+const MODE_LABEL = { campaign: '闯关模式', boss: 'BOSS 战', train: '单项训练' };
+
+/* --- BOSS 战资料（帮助页「BOSS 战」分类） --- */
+const BOSS_INFO = [
+  ['血量与血条', 'BOSS_HP = 7500 · 血条分 10 段', '每段约等于一次狂暴时刻的输出量 · 全程约需 10~12 次狂暴才能打倒'],
+  ['站位与压迫', '初始 z = -13，持续向玩家逼近', '稳定在玩家前方约 5.6 米 · 压迫但不给近身秒杀的机会'],
+  ['召唤小兵', '每次 2~7 只，种类随进度解锁', 'walker/runner → 追加 crawler/hunter → 追加 brute → 追加 titan'],
+  ['飞行冲击波', '5 条路（-4 / -2 / 0 / 2 / 4），锥体贴地飞来', '优先打玩家所在的那一路（带 0.9 秒预警）· 进度 >45% 后同时打两路'],
+  ['冲击波威胁', '血量 55 → 125 · 速度 7 → 13 m/s', '随 BOSS 进度同步变强 · 打爆它可以回 15 点狂怒'],
+  ['狂怒条', '满 100 点，按 F 开启狂暴', '杂兵 +10 / 精英 +18 / 打爆冲击波 +15'],
+  ['狂暴时刻', '10 秒：全场小兵消失，BOSS 僵住无法攻击', '主角可随意输出 · 每用一次伤害倍率 +4%（主角随进度变强）'],
+  ['难度成长', '小兵种类与数量、冲击波速度血量随进度提升', 'BOSS.progress = 1 - hp / maxHp，直接驱动全部难度曲线'],
+  ['脱战回血', '2.5 秒未受伤后 +9.2 HP/s', '比闯关模式（4 秒 / +4 HP/s）快一倍多'],
+  ['武器选择', '进入前自选 · 战中抱胸随时切换', '抱胸进入选择态 → 怪物攻击变超级慢 → 左右移动滑动转盘 → 出拳确认'],
+];
+
+/* ============================================================
+   屏幕管理（主菜单 ↔ 选武器 ↔ 帮助 ↔ 游戏）
+============================================================ */
+function gotoMenu() {
+  S.running = false; S.over = false;
+  S.selectMode = false;
+  stopMusic();
+  hideAllScreens();
+  showScreen(scrMenu);
+  hud.style.display = 'none';
+  overScr.style.display = 'none';
+  $('wheel').classList.remove('on');
+  $('bossHud').style.display = 'none';
+  $('rageHud').style.display = 'none';
+  const mt = $('modeTag'); if (mt) mt.style.display = 'none';
+}
+
+/* --- 摄像头 / 姿态模型 启动流程（任一入口都能触发） --- */
+let camBootStarted = false;
+function bootCamera() {
+  if (camBootStarted) return;
+  camBootStarted = true;
+  const boot = $('bootInfo'), load = $('loading'), cam = $('camStatus');
+  if (boot) boot.classList.add('on');
+  if (load) load.style.display = 'flex';
+  if (cam) cam.textContent = '正在请求摄像头权限…';
+  // 只等待摄像头授权（可能弹窗），姿态模型后台异步下载
+  startCamera().catch(() => { S.camOK = false; }).then(() => {
+    if (load) load.style.display = 'none';
+    if (cam) cam.textContent = S.camOK
+      ? '摄像头已开启，姿态模型后台加载中（首次约 40 秒，之后浏览器缓存秒开）…'
+      : '未授权摄像头，使用键盘游玩';
+    initPose().then(() => {
+      S.poseOK = true;
+      if (cam) cam.textContent = S.camOK ? '✓ 摄像头动作捕捉已就绪' : '✓ 体感已就绪';
+      setTimeout(() => { if (boot) boot.classList.remove('on'); }, 2600);
+    }).catch(e => {
+      S.poseOK = false; diag.model = '失败'; diag.err = String(e.message || e).slice(0, 60);
+      if (cam) cam.textContent = '⚠️ 姿态识别不可用，可用键盘游玩';
+      setTimeout(() => { if (boot) boot.classList.remove('on'); }, 3600);
+    });
+  });
+}
+
+/* --- 进入某个模式 --- */
+function startMode(mode, weapon) {
+  S.mode = mode;
+  S.startWeapon = weapon || 'fist';
+  if (mode === 'train') S.trainWeapon = weapon;
+  hideAllScreens();
+  hud.style.display = 'block';
+  resetGame();
+  introWeapon(S.weapon);
+  ensureAudio();
+  if (sfxReady) startMusic();
+  bootCamera();
+}
+
+/* ============================================================
+   帮助页：分类渲染
+============================================================ */
+let helpTab = 'weapons';
+function hcard(inner) { return '<div class="hcard">' + inner + '</div>'; }
+function secTitle(t) { return '<div class="hsec">' + t + '</div>'; }
+
+function renderHelp() {
+  const body = $('helpBody');
+  if (!body) return;
+  let h = '';
+  if (helpTab === 'weapons') {
+    h += secTitle(Object.keys(WEAPON_INFO).length + ' 把武器 · 数值 / 动捕动作 / 锻炼肌肉');
+    for (const k of Object.keys(WEAPON_INFO)) {
+      const i = WEAPON_INFO[k];
+      h += hcard(
+        '<div><div class="hn"><span class="hi">' + i.icon + '</span>' + i.name + '</div>' +
+        '<div class="ht">' + i.tag + '</div><div class="ht">' + i.unlock + '</div></div>' +
+        '<div><div class="hp"><b>特性数值</b>：' + i.stats + '</div>' +
+        '<div class="hp" style="margin-top:4px"><b>动捕动作</b>：' + i.gesture + '</div>' +
+        '<div class="hp" style="margin-top:6px"><b>锻炼肌肉</b>：' +
+        i.muscles.map(m => '<span class="hchip m">' + m + '</span>').join('') + '</div>' +
+        '<div class="hnote">' + i.feat + '</div></div>');
+    }
+  } else if (helpTab === 'mech') {
+    const groups = { growth: '成长曲线', wave: '波次编排', combat: '战斗判定', juice: '打击感 / 演出', survival: '生存与回血' };
+    for (const g of Object.keys(MECH_INFO)) {
+      h += secTitle(groups[g]);
+      h += '<ul class="hlist">';
+      for (const row of MECH_INFO[g]) h += '<li><b>' + row[0] + '</b> — <span style="color:#ffd60a">' + row[1] + '</span><br><span style="color:#8f96a3">' + row[2] + '</span></li>';
+      h += '</ul>';
+    }
+  } else if (helpTab === 'moves') {
+    h += secTitle('通用动捕动作（与武器无关）');
+    h += '<ul class="hlist">' +
+      '<li><b>🫂 抱胸</b> — <span style="color:#ffd60a">双手在胸前合拢抱住（两手彼此靠拢）</span><br>' +
+      '<span style="color:#8f96a3">这是「进入武器选择状态」的唯一触发姿势。保持约 0.3 秒 → 弹出武器转盘，' +
+      '此时全场怪物攻击变得超级慢；身体左右移动即可滑动转盘选武器，向前出拳确认，松开抱胸即取消。' +
+      '键盘无摄像头时按 <b>E</b> 等效。</span></li>' +
+      '<li><b>🛡 双臂交叉</b> — <span style="color:#ffd60a">两臂在胸前交叉成 X 形（两手分列胸口两侧）</span><br>' +
+      '<span style="color:#8f96a3">进入防御姿态，伤害减少 80%。与「抱胸」在几何上互斥：抱胸时两手靠拢成一体，交叉防御时两手分开。</span></li>' +
+      '<li><b>👊 出拳</b> — <span style="color:#ffd60a">手臂快速伸直向镜头</span><br>' +
+      '<span style="color:#8f96a3">需同时满足「腕-肩距离峰值 &gt; 0.95 肩宽」+「上升速度 &gt; 1.6 肩宽/秒」，静止待机不会误触。</span></li>' +
+      '</ul>';
+    h += secTitle('每把武器对应的动捕动作与识别条件');
+    for (const k of Object.keys(WEAPON_INFO)) {
+      const i = WEAPON_INFO[k];
+      let rows = '';
+      for (const m of i.moves) rows += '<li><b>' + m[0] + '</b> — ' + m[1] + '</li>';
+      h += hcard(
+        '<div><div class="hn"><span class="hi">' + i.icon + '</span>' + i.name + '</div>' +
+        '<div class="ht">' + i.tag + '</div></div>' +
+        '<div><ul class="hlist">' + rows + '</ul>' +
+        '<div class="hnote" style="margin-top:7px">' + i.gesture + '</div></div>');
+    }
+  } else if (helpTab === 'muscle') {
+    h += secTitle('武器 → 锻炼的肌肉群');
+    for (const k of Object.keys(WEAPON_INFO)) {
+      const i = WEAPON_INFO[k];
+      h += hcard(
+        '<div><div class="hn"><span class="hi">' + i.icon + '</span>' + i.name + '</div>' +
+        '<div class="ht">' + i.tag + '</div></div>' +
+        '<div><div class="hrow">' + i.muscles.map(m => '<span class="hchip m">' + m + '</span>').join('') + '</div>' +
+        '<div class="hnote">' + i.feat + '</div></div>');
+    }
+    // 肌肉群索引：哪些武器练同一块
+    const idx = {};
+    for (const k of Object.keys(WEAPON_INFO)) {
+      for (const m of WEAPON_INFO[k].muscles) (idx[m] = idx[m] || []).push(WEAPON_INFO[k].name);
+    }
+    h += secTitle('肌肉群索引 · 同一块肌肉由哪些武器练');
+    h += '<ul class="hlist">';
+    for (const m of Object.keys(idx)) h += '<li><b>' + m + '</b> — ' + idx[m].join(' / ') + '</li>';
+    h += '</ul>';
+  } else if (helpTab === 'zombies') {
+    h += secTitle('六种丧尸 · 数值与特性');
+    for (const k of Object.keys(ZOMBIE_INFO)) {
+      const z = ZOMBIE_INFO[k];
+      const t = ZOMBIE_INTRO[k] || { trait: '' };
+      h += hcard(
+        '<div><div class="hn"><span class="hi">' + z.icon + '</span>' + z.name + '</div>' +
+        '<div class="ht">' + z.kind + (z.elite ? ' · 精英' : ' · 杂兵') + '</div></div>' +
+        '<div><div class="hrow">' +
+        '<span class="hchip"><b>HP</b> ' + z.hp + '</span>' +
+        '<span class="hchip"><b>速度</b> ' + z.speed + ' m/s</span>' +
+        '<span class="hchip"><b>体型</b> ×' + z.scale + '</span>' +
+        '<span class="hchip d"><b>撕咬伤害</b> ' + z.dmg + '</span></div>' +
+        '<div class="hnote">' + t.trait + '</div></div>');
+    }
+    h += secTitle('僵尸共性规则');
+    h += '<ul class="hlist">' +
+      '<li><b>成长曲线</b>：杂兵每波 +1.8% 血量，精英每波 +5% 血量，伤害 +5%，移速 +3%</li>' +
+      '<li><b>撕咬节奏</b>：每只 0.9~1.4 秒一次；受伤后 0.55 秒无敌帧</li>' +
+      '<li><b>围攻倍率</b>：身边 1 只 ×1.0 → 12 只及以上 ×2.32，单次伤害封顶 18 点</li>' +
+      '<li><b>精英不吃倍率</b>：血厚已经够吓人，不靠一口咬死人</li>' +
+      '<li><b>血条显示</b>：只有被打过的丧尸才显示血条</li>' +
+      '</ul>';
+  } else if (helpTab === 'boss') {
+    h += secTitle('BOSS 战 · 缝合巨兽（尸潮主宰）');
+    h += '<ul class="hlist">';
+    for (const row of BOSS_INFO) h += '<li><b>' + row[0] + '</b> — <span style="color:#ffd60a">' + row[1] + '</span><br><span style="color:#8f96a3">' + row[2] + '</span></li>';
+    h += '</ul>';
+    h += secTitle('战斗循环');
+    h += '<ul class="hlist">' +
+      '<li><b>① 打小兵</b>：平时只能打召唤出来的小兵，打不到 BOSS 本体</li>' +
+      '<li><b>② 攒狂怒</b>：杀杂兵 / 精英 / 打爆冲击波都会攒狂怒，满 100 点</li>' +
+      '<li><b>③ 开狂暴</b>：按 F，全场小兵瞬间消失、BOSS 僵住无法攻击，持续 10 秒</li>' +
+      '<li><b>④ 尽情输出</b>：狂暴窗口内随意打 BOSS，伤害倍率随使用次数递增</li>' +
+      '<li><b>⑤ 循环</b>：狂暴结束 BOSS 恢复行动，进度推进后小兵和冲击波更难</li>' +
+      '</ul>';
+  } else if (helpTab === 'modes') {
+    h += secTitle('三个模式怎么玩');
+    h += '<ul class="hlist">' +
+      '<li><b>🏃 闯关模式</b> — <span style="color:#ffd60a">一路向前推进，清场解锁全部 9 把武器</span><br>' +
+      '<span style="color:#8f96a3">杂兵成群、精英偶尔出没；每通过一波解锁下一把武器。武器按波次解锁，初始只有拳头与双枪。</span></li>' +
+      '<li><b>👹 BOSS 战</b> — <span style="color:#ffd60a">进入前自选入场武器，战斗中随时切换</span><br>' +
+      '<span style="color:#8f96a3">所有武器默认可用。靠狂怒条开启狂暴时刻输出 BOSS，本体平时打不动（会弹出「硬」的反馈）。' +
+      '详见「BOSS 战」分类。</span></li>' +
+      '<li><b>🎯 单项训练</b> — <span style="color:#ffd60a">点选一把武器 → 看它的特性数值 / 动捕动作 / 锻炼肌肉 → 只用这一把闯关</span><br>' +
+      '<span style="color:#8f96a3">训练模式全程锁定该武器，其它武器无法切换；波次推进与解锁规则照旧，方便专注练某一类动作。</span></li>' +
+      '</ul>';
+    h += secTitle('通用操作');
+    h += '<ul class="hlist">' +
+      '<li><b>体感</b>：出拳攻击 · 双臂交叉防御 · 抱胸弹武器转盘 · 身体左右横移闪避 · 脸贴近/远离镜头前进/后退</li>' +
+      '<li><b>键盘</b>：空格/J 攻击（蓄力武器长按松开） · 1~0/- 切武器 · A/D 横移 · W/S 前后 · E 武器转盘 · F 狂暴时刻（BOSS 战） · F2 调试解锁全部武器</li>' +
+      '<li><b>回血</b>：脱战自动回血 —— 闯关 4 秒后 +4 HP/s，训练同闯关，<b>BOSS 战 2.5 秒后 +9.2 HP/s（更快）</b></li>' +
+      '</ul>';
+  }
+  body.innerHTML = h;
+}
+
+/* ============================================================
+   选武器页（BOSS 战 / 单项训练）
+============================================================ */
+function renderWeaponGrid(gridId, detailId, mode) {
+  const grid = $(gridId), detail = $(detailId);
+  if (!grid) return;
+  grid.innerHTML = '';
+  const sel = mode === 'boss' ? (S.bossPick || 'fist') : (S.trainPick || 'fist');
+  // 单项训练里没有波次解锁的概念，不显示「第 N 波」文案
+  const showUnlock = mode !== 'train';
+  for (const k of Object.keys(WEAPON_INFO)) {
+    const i = WEAPON_INFO[k];
+    const b = document.createElement('button');
+    b.className = 'wpick' + (k === sel ? ' on' : '');
+    b.dataset.w = k;
+    b.innerHTML = '<div class="wn"><span class="wi">' + i.icon + '</span>' + i.name + '</div>' +
+      '<div class="wd">' + i.tag + '</div>' +
+      (showUnlock ? '<div class="wd" style="opacity:.7">' + i.unlock + '</div>' : '');
+    b.addEventListener('click', () => {
+      if (mode === 'boss') S.bossPick = k; else S.trainPick = k;
+      for (const c of grid.children) c.classList.toggle('on', c.dataset.w === k);
+      renderWeaponDetail(detailId, k, mode);
+    });
+    grid.appendChild(b);
+  }
+  renderWeaponDetail(detailId, sel, mode);
+}
+
+function renderWeaponDetail(detailId, k, mode) {
+  const el = $(detailId);
+  if (!el) return;
+  const i = WEAPON_INFO[k];
+  if (!i) { el.innerHTML = ''; return; }
+  let moves = '';
+  for (const m of i.moves) moves += '<li><b>' + m[0] + '</b> — ' + m[1] + '</li>';
+  const head = mode === 'train'
+    ? '进入后只能使用这一把武器闯关（其它武器已锁定）'
+    : 'BOSS 战里所有武器都能用，战斗中抱胸也能随时切换';
+  // 单项训练不显示「第 N 波解锁」文案
+  const tagLine = mode === 'train' ? i.tag : (i.tag + ' · ' + i.unlock);
+  el.innerHTML =
+    '<div class="wtitle"><span class="wi">' + i.icon + '</span>' + i.name +
+    '<span style="font-size:11px;color:#8f96a3;font-weight:400;margin-left:8px">' + tagLine + '</span></div>' +
+    '<div class="hnote" style="margin:6px 0 2px">' + head + '</div>' +
+    '<div class="wcols">' +
+    '<div><div class="hsec">特性数值</div><div class="hp"><b>' + i.stats + '</b></div>' +
+    '<div class="hnote" style="margin-top:6px">' + i.feat + '</div></div>' +
+    '<div><div class="hsec">动捕动作</div><ul class="hlist">' + moves + '</ul>' +
+    '<div class="hnote" style="margin-top:6px">' + i.gesture + '</div></div>' +
+    '<div><div class="hsec">锻炼肌肉</div><div class="hrow">' +
+    i.muscles.map(m => '<span class="hchip m">' + m + '</span>').join('') + '</div></div>' +
+    '</div>';
+}
+
+/* ============================================================
+   抱胸 → 武器选择状态 → 武器转盘
+   —— 抱胸是进入选择状态的唯一触发姿势
+============================================================ */
+function wheelWeaponList() {
+  if (S.mode === 'boss') return Object.keys(WEAPONS);
+  if (S.mode === 'train') return S.trainWeapon ? [S.trainWeapon] : [];
+  return Object.keys(WEAPONS).filter(w => S.unlocked.has(w));
+}
+const WHEEL_STEP = 102;   // 卡片宽 88 + 间距 14
+
+function buildWheel() {
+  const row = $('wheelRow');
+  if (!row) return;
+  row.innerHTML = '';
+  for (const w of wheelWeaponList()) {
+    const info = WEAPON_INFO[w] || { icon: '❔', name: WEAPONS[w] ? WEAPONS[w].name : w };
+    const d = document.createElement('div');
+    d.className = 'wslot';
+    d.dataset.w = w;
+    d.innerHTML = '<div class="wi">' + info.icon + '</div><div class="wn">' + info.name + '</div>';
+    d.addEventListener('click', () => {
+      const list = wheelWeaponList();
+      S.wheelScroll = Math.max(0, list.indexOf(w));
+      confirmSelectMode();
+    });
+    row.appendChild(d);
+  }
+}
+
+function updateWheelVisual() {
+  const list = wheelWeaponList();
+  const row = $('wheelRow');
+  if (!row || !list.length) return;
+  const off = (S.wheelScroll - (list.length - 1) / 2) * WHEEL_STEP;
+  row.style.transform = 'translateX(calc(-50% - ' + off.toFixed(1) + 'px))';
+  const idx = Math.round(S.wheelScroll);
+  const slots = row.children;
+  for (let i = 0; i < slots.length; i++) slots[i].classList.toggle('on', i === idx);
+  const info = WEAPON_INFO[list[idx]];
+  const title = $('wheelTitle');
+  if (title && info) title.innerHTML = info.icon + ' <span>' + info.name + '</span> · ' + info.tag;
+}
+
+function enterSelectMode(manual = false) {
+  const list = wheelWeaponList();
+  if (!list.length) return;
+  S.selectMode = true;
+  S.selectT = 0;
+  S.selectCancel = 0;
+  S.selectManual = manual;
+  const cur = list.indexOf(S.weapon);
+  S.selectIdx = cur >= 0 ? cur : 0;
+  S.wheelScroll = S.selectIdx;
+  buildWheel();
+  updateWheelVisual();
+  $('wheel').classList.add('on');
+  // 抱胸本身会带动腕-肩距离变化，重置峰值避免误判为出拳
+  GT.dPeak = 0; GT.vPeak = 0; GT.dMin = GT.dS;
+  announce('🫂 武器选择 · 左右移动滑动转盘', '#ffd60a');
+  enqueueToast('🫂 武器选择', '左右移动身体滑动转盘 · 出拳确认 · 松开抱胸取消', '#ffd60a');
+}
+
+function exitSelectMode() {
+  S.selectMode = false;
+  S.selectT = 0;
+  S.selectCancel = 0;
+  S.selectHold = 0;
+  S.selectManual = false;
+  S.wheelAccum = 0;
+  $('wheel').classList.remove('on');
+}
+
+function confirmSelectMode() {
+  const list = wheelWeaponList();
+  if (!list.length) { exitSelectMode(); return; }
+  const w = list[Math.max(0, Math.min(list.length - 1, Math.round(S.wheelScroll)))];
+  exitSelectMode();
+  if (w && w !== S.weapon) switchWeapon(w);
+  else announce('武器：' + (w ? WEAPONS[w].name : ''), '#ffd60a');
+}
+
+/* 每帧：抱胸保持 / 转盘滑动 / 取消 */
+function updateSelectMode(dt) {
+  if (!S.running || S.over) { if (S.selectMode) exitSelectMode(); return; }
+  if (!S.poseOK) S.hugArmed = false;   // 没有摄像头就不可能抱胸
+  if (!S.selectMode) {
+    if (S.hugArmed) {
+      S.selectHold = Math.min(1.4, S.selectHold + dt);
+      if (S.selectHold > 0.28) enterSelectMode();
+    } else {
+      S.selectHold = Math.max(0, S.selectHold - dt * 2.5);
+    }
+    return;
+  }
+  S.selectT += dt;
+  // 滑动：手势横向位移累积（由 analyzeGestures 写入 S.wheelAccum）
+  if (S.wheelAccum) { S.wheelScroll += S.wheelAccum * 2.2; S.wheelAccum = 0; }
+  const list = wheelWeaponList();
+  if (!list.length) { exitSelectMode(); return; }
+  S.wheelScroll = Math.max(0, Math.min(list.length - 1, S.wheelScroll));
+  updateWheelVisual();
+  // 取消：松开抱胸超过 0.35 秒（键盘进入的选择态不自动取消）
+  if (!S.hugArmed && !S.selectManual) {
+    S.selectCancel += dt;
+    if (S.selectCancel > 0.35) { exitSelectMode(); announce('已取消武器选择', '#9aa0ad'); }
+  } else S.selectCancel = 0;
+  // 超时自动退出
+  if (S.selectT > 14) { exitSelectMode(); }
 }
 
 /* ============================================================
@@ -2046,7 +4099,7 @@ const ACHIEVEMENTS = [
   { id: 'killer',      name: '屠夫',     desc: '单场击杀 ≥10', icon: '🔪', test: st => st.kills >= 10 },
   { id: 'slayer',      name: '尸潮杀手', desc: '单场击杀 ≥25', icon: '⚔️', test: st => st.kills >= 25 },
   { id: 'wave3',       name: '三波斩',   desc: '通关第 3 波',   icon: '🏁', test: st => st.encounterIndex >= 3 },
-  { id: 'katana',      name: '武士刀到手', desc: '解锁武士刀',   icon: '🗡️', test: st => st.katanaUnlocked },
+  { id: 'katana',      name: '武士刀到手', desc: '解锁武士刀',   icon: '🗡️', test: st => st.unlocked.has('katana') },
   { id: 'blade_master', name: '三式精通', desc: '斜劈·竖砍·捅刺都用过', icon: '🌀', test: st => st.formsUsed.size >= 3 },
   { id: 'combo5',      name: '连击大师', desc: '拳击连击 ≥5',   icon: '👊', test: st => st.maxCombo >= 5 },
   { id: 'marathon',    name: '远征者',   desc: '推进 100 米',   icon: '🏃', test: st => st.distance >= 100 },
@@ -2289,9 +4342,14 @@ function pumpToast() {
 // 武器登场提示文案（怎么用 + 特性）
 const WEAPON_INTRO = {
   fist:   { icon: '🥊', name: '拳头',   how: '空格/J 出拳 · 连续出拳触发连招', trait: '双拳连击 → 疯狂连击 → 重拳终结，越打越强' },
-  knife:  { icon: '🔪', name: '匕首',   how: '空格/J 快速刺击', trait: '攻速最快、单体高伤，适合贴身缠斗' },
+  gun:    { icon: '🔫', name: '双枪',   how: '像摇晃手机一样上下摇小臂开火 · 左手右手都能打 · 可同时双发', trait: '双手持枪 · 摇一次打一枪，30 米远程连射最稳' },
   katana: { icon: '⚔️', name: '武士刀', how: 'Z/X/C 直选三式 · 体感双手握拳靠拢后挥动', trait: '斜劈清群 · 竖砍破甲 · 捅刺穿透' },
-  gun:    { icon: '🔫', name: '枪支',   how: '空格/J 开火', trait: '30 米远程点射，保持距离持续输出' },
+  staff:  { icon: '🥢', name: '长棍',   how: '双手握持 · 左右大摆=横扫 / 高举砸落=下劈 / 前推=戳刺', trait: '宽扇形清群，转腰挥摆练肩背核心，有氧首选' },
+  hammer: { icon: '🔨', name: '战锤',   how: '右臂抬高开始蓄力（屏幕显示蓄力中）· 挥落/抡出释放', trait: '蓄力越久伤害越高，自带破甲，专克重甲丧尸' },
+  daggers:{ icon: '🗡️', name: '双匕首', how: '胸前交错划动=连割 · 双手合拢前刺=双刺', trait: '攻速极快可叠连击，练小臂、切换节奏不疲劳' },
+  whip:   { icon: '🪢', name: '鞭子',   how: '右臂从身侧向前快速甩出=抽打（无需蓄力）', trait: '远程抽打不用贴怪，心率缓冲、低压输出' },
+  bow:    { icon: '🏹', name: '弓箭',   how: '任一只手向后扯线→送出去，完成一个来回=射一箭', trait: '静态等长收缩练背肌，最远单体精准，降心率' },
+  flail:  { icon: '⛓️', name: '流星锤', how: '手臂伸直绕肩转满一圈=一次大范围抽击', trait: '高消耗有氧毕业武器，空挥会反噬自伤' },
 };
 // 首次获得/切换到某武器时弹大提示（拳头在开局弹出）
 function introWeapon(w) {
@@ -2314,10 +4372,33 @@ function updateHUD() {
   elKills.textContent = S.kills;
   elDist.textContent = Math.floor(S.distance);
   const aliveN = zombies.filter(z => z.state !== 'die').length;
-  if (S.phase === 'walk') $('waveTag').textContent = '前进中 · 下波 ' + Math.max(0, Math.ceil(S.nextEncounterAt - S.distance)) + 'm';
+  if (S.mode === 'boss') {
+    $('waveTag').textContent = 'BOSS 战 · 小兵 ' + aliveN + ' 只';
+  } else if (S.phase === 'walk') $('waveTag').textContent = '前进中 · 下波 ' + Math.max(0, Math.ceil(S.nextEncounterAt - S.distance)) + 'm';
   else if (S.phase === 'combat') $('waveTag').textContent = '第 ' + (S.encounterIndex + 1) + ' 波 · 剩余 ' + aliveN + ' 只';
   else $('waveTag').textContent = '清场完成';
   $('guardBadge').style.display = S.defending ? 'block' : 'none';
+  // BOSS 血条 + 狂怒条
+  if (S.mode === 'boss') updateBossHUD();
+  // 模式标签
+  const mt = $('modeTag');
+  if (mt) {
+    mt.style.display = 'block';
+    mt.textContent = MODE_LABEL[S.mode] + (S.mode === 'train' && WEAPONS[S.trainWeapon] ? ' · ' + WEAPONS[S.trainWeapon].name : '');
+  }
+  // 蓄力指示：蓄力期间常驻显示「蓄力中」+ 蓄力进度
+  const chHud = $('chargeHud');
+  if (chHud) {
+    if (S.charging) {
+      chHud.classList.add('on');
+      const pct = Math.min(100, (S.time - S.chargeStart) / 2.5 * 100);   // 2.5 秒满蓄力（对应最高 ×2.5）
+      $('chargeFill').style.width = pct + '%';
+      const lb = $('chargeLabel');
+      if (lb) lb.textContent = '蓄力中 ' + Math.round(pct) + '%';
+    } else {
+      chHud.classList.remove('on');
+    }
+  }
 }
 
 /* ============================================================
@@ -2362,9 +4443,6 @@ function applyPlayerPose() {
       const wind = Math.sin(Math.min(p * 1.6, 1) * Math.PI);
       rSwing = 1.6 * wind; rEl = 0.3 * wind;
       rYaw = 0.4 * wind; lean = 0.28 * wind;
-    } else if (t === 'knife') {
-      // 匕首前刺
-      rSwing = 1.4 * punch; rEl = 0.25 * punch; rYaw = 0.2 * punch;
     } else if (t === 'katana_slash') {
       // 斜劈：右上举刀 → 左下斜斩（dir 反向还原真实左右，镜头镜像）
       const q = bladeSwing(p, 0.32);
@@ -2381,8 +4459,57 @@ function applyPlayerPose() {
       rSwing = 1.68 * punch; rEl = -0.06 * punch; rRoll = 0.06 * punch;
       lean = 0.20 * punch;
     } else if (t === 'gun') {
-      // 举枪射击
-      rSwing = 1.5 * punch; rEl = 0.1 * punch;
+      // 双枪：双手持枪举射 + 后坐（左右手交替上抬）
+      const hand = (S.gunHand === 'L') ? -1 : 1;
+      rSwing = 1.30 * punch; rEl = 0.16 * punch; rYaw = 0.10 * punch * hand;
+      lSwing = 1.30 * punch; lEl = 0.16 * punch; lYaw = -0.10 * punch * hand;
+      lean = 0.07 * punch;
+    } else if (t === 'staff_sweep') {
+      // 长棍横扫：双手持棍左右大摆
+      const q = bladeSwing(p, 0.32);
+      const sd = (S.attack.dir && S.attack.dir < 0) ? -1 : 1;
+      rSwing = 1.5 - 0.6 * q; lSwing = 1.5 - 0.6 * q;
+      rRoll = -0.9 * q * sd; rEl = 0.15 * (1 - Math.abs(q)); lEl = 0.15 * (1 - Math.abs(q));
+      lean = 0.14 * Math.sin(p * Math.PI);
+    } else if (t === 'staff_smash') {
+      // 长棍下劈：双手高举砸落
+      const q = bladeSwing(p, 0.38);
+      rSwing = 1.85 - 1.1 * q; lSwing = 1.85 - 1.1 * q;
+      rEl = 0.06; lEl = 0.06; lean = 0.18 * Math.max(0, q);
+    } else if (t === 'staff_poke') {
+      // 长棍戳刺：双手前推
+      rSwing = 1.7 * punch; lSwing = 1.7 * punch;
+      rEl = -0.06 * punch; lEl = -0.06 * punch; lean = 0.2 * punch;
+    } else if (t === 'hammer_smash') {
+      // 战锤下砸：单臂高举过头猛落
+      const q = bladeSwing(p, 0.42);
+      rSwing = 2.0 - 1.25 * q; rEl = 0.08;
+      lSwing = 0.3 * (1 - q); lean = 0.22 * Math.max(0, q);
+    } else if (t === 'hammer_swing') {
+      // 战锤侧抡：单臂横向抡过
+      const q = bladeSwing(p, 0.34);
+      rSwing = 1.3 - 0.5 * q; rRoll = -1.0 * q; rYaw = 0.3 * q;
+      rEl = 0.12; lean = 0.14 * Math.sin(p * Math.PI);
+    } else if (t === 'daggers_flurry') {
+      // 双匕首连割：左右交错快速划动
+      const ph = p * 2;
+      rSwing = 1.1 * Math.sin(ph * Math.PI);
+      lSwing = 1.1 * Math.sin((ph + 1) * Math.PI);
+      rEl = 0.25 * punch; lEl = 0.25 * punch;
+      rRoll = 0.25 * Math.sin(ph * Math.PI); rYaw = 0.3 * punch; lYaw = -0.3 * punch;
+    } else if (t === 'daggers_twin') {
+      // 双匕首双刺：双手同时向前合刺
+      rSwing = 1.55 * punch; lSwing = 1.55 * punch;
+      rEl = 0.18 * punch; lEl = 0.18 * punch; lean = 0.18 * punch;
+    } else if (t === 'whip_crack') {
+      // 鞭子抽打：手臂甩出→回收
+      const snap = Math.sin(p * Math.PI);
+      rSwing = 1.3 * snap; rEl = 0.1 * snap; rYaw = 0.4 * snap; rRoll = 0.3 * snap;
+    } else if (t === 'flail') {
+      // 流星锤：单臂大回环甩开
+      const q = bladeSwing(p, 0.3);
+      rSwing = 1.2 - 0.7 * q; rRoll = -1.4 * q; rYaw = 0.35 * q;
+      rEl = 0.1; lean = 0.16 * Math.sin(p * Math.PI);
     }
   }
 
@@ -2432,9 +4559,13 @@ function applyZombiePose(zz, dt) {
       h.root.rotation.z = Math.sin(wp * 0.5) * 0.08;
     }
   } else if (zz.state === 'die') {
-    // 向后倒地并下陷
-    h.root.rotation.x = Math.min(zz.death * 2.6, Math.PI / 2);
-    h.root.position.y = -zz.death * 0.5;
+    // 被打飞后翻滚倒地：先被抛起旋转，再仰面砸地、下陷、缩小消失
+    const d = zz.death;
+    h.root.rotation.x = Math.min(d * 2.6, Math.PI / 2);
+    h.root.rotation.z = Math.min(d * 1.6, 0.7) * Math.sign(zz.spin || 1);
+    h.root.position.y = -Math.max(0, d - 0.35) * 1.1 + Math.max(0, 0.35 - d) * 1.4;
+    const shrink = 1 - Math.max(0, d - 1.0) * 0.7;
+    h.root.scale.setScalar(zz.scale * Math.max(0.25, shrink));
   }
 }
 
@@ -2449,8 +4580,18 @@ function update(dt) {
   S.difficulty = S.encounterIndex + 1;
   if (S.defending) S.guardTime += dt;   // 防御姿态时长（成就/结算）
 
+  // 抱胸武器选择状态：怪物行动变超级慢（必须在 BOSS/丧尸更新之前算）
+  updateSelectMode(dt);
+
   // 阶段机：前进 → 遭遇战 → 清场 → 继续前进
-  if (S.phase === 'walk') {
+  if (S.mode === 'boss') {
+    // BOSS 战：原地对峙，不前进也不走「清场→下一波」循环
+    S.worldSpeed = 0;
+    S.walkPhase += dt * 3.0;
+    S.phase = 'combat';
+    updateBoss(dt);
+    updateBossWaves(dt);
+  } else if (S.phase === 'walk') {
     S.worldSpeed = 6.0 + S.difficulty * 0.3;
     S.distance += S.worldSpeed * dt;
     S.walkPhase += dt * (S.worldSpeed * 1.7);
@@ -2475,10 +4616,16 @@ function update(dt) {
   const phoneDodge = THREE.MathUtils.clamp(S.phoneGamma / 22, -1, 1);
   const bodyDodge = THREE.MathUtils.clamp(S.bodyDodge, -1, 1);
   const dodge = Math.abs(phoneDodge) > Math.abs(bodyDodge) ? phoneDodge : bodyDodge;
-  S.dodgeVX = dodge * 5.5;
+  // 选择武器时身体横移用于滑动转盘，不再用来闪避
+  S.dodgeVX = S.selectMode ? 0 : dodge * 5.5;
 
-  // 枪支冷却
+  // 双枪 / 弓箭冷却
   if (S.gunCooldown > 0) S.gunCooldown -= dt;
+  if (GUN_CD.R > 0) GUN_CD.R -= dt;   // 左右手各自冷却 → 可同时开火
+  if (GUN_CD.L > 0) GUN_CD.L -= dt;
+  if (S.bowCooldown > 0) S.bowCooldown -= dt;
+  // 受伤无敌帧
+  if (S.hurtCd > 0) S.hurtCd -= dt;
 
   // 横移 = 键盘 + 体感闪避（手机倾斜 / 身体横移）
   const targetVX = S.keyVX + S.dodgeVX;
@@ -2520,23 +4667,26 @@ function update(dt) {
     S.attack.t = 0;
     spawnSlashFx(S.attack.type, S.attack.dir || 1);   // 挥击气浪 / 刀光
     if (S.attack.name) {
-      // 连招命中（在触发时结算一次较大范围）
+      // 招式命中（出手时刻结算一次较大范围；double=双段伤害结算两次）
       hitZombies(S.attack.range, S.attack.arc, S.attack.aoe, S.attack.dmg, S.attack.name,
+        S.attack.splash, S.attack.knock, S.attack.stagger, S.attack.armorBonus);
+      if (S.attack.double) hitZombies(S.attack.range, S.attack.arc, S.attack.aoe, S.attack.dmg, S.attack.name,
         S.attack.splash, S.attack.knock, S.attack.stagger, S.attack.armorBonus);
     }
   }
   if (S.attack) {
     S.attack.t += dt;
     if (S.attack.t >= S.attack.dur) {
-      // 普通攻击在出手时刻结算
-      if (!S.attack.name) hitZombies(S.attack.range, S.attack.arc, S.attack.aoe, S.attack.dmg, null);
+      // 普通攻击在出手时刻结算（保留击退/硬直/破甲等附加属性）
+      if (!S.attack.name) hitZombies(S.attack.range, S.attack.arc, S.attack.aoe, S.attack.dmg, null,
+        S.attack.splash, S.attack.knock, S.attack.stagger, S.attack.armorBonus);
       S.attack = null;
     }
   }
 
   applyPlayerPose();
 
-  // 子弹更新（枪支远程射击）
+  // 子弹更新（双枪/弓箭远程射击）
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.z -= b.v * dt;
@@ -2549,17 +4699,25 @@ function update(dt) {
         hit = true; break;
       }
     }
+    // BOSS 本体：只有狂暴时刻才能被子弹/箭矢打中（hitBoss 内部会判定）
+    if (!hit && S.mode === 'boss' && BOSS.active && BOSS.hp > 0) {
+      if (Math.abs(b.x - BOSS.x) < 2.5 && Math.abs(b.z - BOSS.z) < 1.9) {
+        hitBoss(b.dmg);
+        hit = true;
+      }
+    }
     if (hit || b.z < -60) {
       b.mesh.visible = false;
       bulletMeshes.push(b.mesh);
       bullets.splice(i, 1);
     }
   }
-
   // 丧尸由「遭遇战」阶段按波次生成
 
   // 丧尸更新 + 移动世界（滚动）
   const scroll = S.worldSpeed * dt;
+  // 抱胸选武器时：丧尸移动与撕咬节奏都变得超级慢（给玩家从容选武器）
+  const zslow = S.selectMode ? 0.12 : 1;
   for (let i = zombies.length - 1; i >= 0; i--) {
     const zz = zombies[i];
     zz.t += dt;
@@ -2593,8 +4751,8 @@ function update(dt) {
       ex /= em; ez /= em;
 
       if (d0 > 0.8) {   // 贴近后停止逼近
-        zz.x += ex * zz.speed * dt;
-        zz.z += ez * zz.speed * dt;
+        zz.x += ex * zz.speed * dt * zslow;
+        zz.z += ez * zz.speed * dt * zslow;
       }
 
       // 障碍物碰撞推出（不穿透）
@@ -2632,37 +4790,53 @@ function update(dt) {
       if (zz.stagger > 0) zz.stagger -= dt;
 
       // 攻击玩家：贴近到攻击范围（手臂长度 + 身体半径）才咬，玩家后退即可脱离
+      // 离散撕咬：每只丧尸有自己的攻击间隔；被无敌帧挡下的攻击快速重试（围攻节奏更连续）
       const atkR = 0.85 + zz.r + 0.35;
       const dNow = Math.hypot(S.playerX - zz.x, S.playerZ - zz.z);
       if (dNow < atkR && zz.stagger <= 0) {
-        damagePlayer(zz.dmg * dt * 2.2);
+        zz.atkCd -= dt * zslow;
+        if (zz.atkCd <= 0) {
+          // 杂兵按围攻倍率放大（成群才有威胁），精英不放大（血厚已经够吓人）
+          const landed = damagePlayer(zz.dmg * (zz.arch === 'brute' || zz.arch === 'titan' ? 0.16 : 0.30),
+                                      zz.arch === 'brute' || zz.arch === 'titan');
+          // 命中 → 完整冷却；被无敌帧挡下 → 快速再咬（被围时伤害节奏不中断）
+          zz.atkCd = landed ? (0.9 + Math.random() * 0.5) : 0.28;
+        }
+      } else {
+        zz.atkCd = Math.min(zz.atkCd, 0.25);
       }
     } else if (zz.state === 'die') {
       zz.death += dt;
       if (zz.death > 1.6) { despawnZombie(zz); continue; }
     }
 
-    // 受击闪红：hitFlash 1→0 衰减，材质颜色由基础色向红色渐变再快速回落（存活/死亡都生效，避免倒地卡红）
-    if (zz.hitFlash > 0) {
+    // 受击闪红 + 白闪：白闪瞬时爆亮（更短更刺眼），红色余韵稍长
+    if (zz.hitFlash > 0 || zz.hitWhite > 0) {
       zz.hitFlash = Math.max(0, zz.hitFlash - dt * 5);
+      zz.hitWhite = Math.max(0, zz.hitWhite - dt * 11);
       const t = zz.hitFlash;
-      zz.skinMat.color.lerpColors(zz.baseSkin, HIT_RED, t);
-      zz.shirtMat.color.lerpColors(zz.baseShirt, HIT_RED, t);
-      zz.pantsMat.color.lerpColors(zz.basePants, HIT_RED, t);
+      const w = zz.hitWhite;
+      // 白色叠在红色之上：先爆白再转红
+      zz.skinMat.color.lerpColors(zz.baseSkin, HIT_RED, t * 0.85).lerp(HIT_WHITE, w * 0.9);
+      zz.shirtMat.color.lerpColors(zz.baseShirt, HIT_RED, t * 0.6).lerp(HIT_WHITE, w * 0.5);
+      zz.pantsMat.color.lerpColors(zz.basePants, HIT_RED, t * 0.6).lerp(HIT_WHITE, w * 0.5);
     }
 
     zz.h.root.position.set(zz.x, zz.h.root.position.y, zz.z);
     if (zz.z > S.playerZ + 10) { despawnZombie(zz); continue; }
-    // 头顶血量条：跟随丧尸、面向镜头、按血量缩放变色
+    // 头顶血量条：只在被打过之后显示（避免满屏血条糊成一片），跟随丧尸、面向镜头、按血量缩放变色
     if (zz.state !== 'die') {
       const bar = zz.bar;
-      bar.g.visible = true;
-      bar.g.position.set(zz.x, 2.0 * zz.scale + 0.3, zz.z);
-      bar.g.quaternion.copy(camera.quaternion);
       const ratio = THREE.MathUtils.clamp(zz.hp / zz.maxHp, 0, 1);
-      bar.fill.scale.x = Math.max(0.001, ratio);
-      bar.fill.position.x = -(1 - ratio) * 0.38;
-      bar.fillMat.color.setHSL(ratio * 0.33, 1, 0.55);   // 绿→黄→红
+      const showBar = ratio < 0.999;                    // 受过伤才显示
+      bar.g.visible = showBar;
+      if (showBar) {
+        bar.g.position.set(zz.x, 2.0 * zz.scale + 0.3, zz.z);
+        bar.g.quaternion.copy(camera.quaternion);
+        bar.fill.scale.x = Math.max(0.001, ratio);
+        bar.fill.position.x = -(1 - ratio) * 0.38;
+        bar.fillMat.color.setHSL(ratio * 0.33, 1, 0.55);   // 绿→黄→红
+      }
     } else {
       zz.bar.g.visible = false;
     }
@@ -2728,30 +4902,121 @@ function update(dt) {
     }
   }
 
+  // 碎肉块：抛物线落地弹跳
+  for (const g of gorePool) {
+    if (g.life > 0) {
+      g.life -= dt;
+      g.vy -= 16 * dt;
+      g.m.position.x += g.vx * dt;
+      g.m.position.y += g.vy * dt;
+      g.m.position.z += (g.vz + scroll) * dt;
+      g.m.rotation.x += g.rx * dt;
+      g.m.rotation.z += g.rz * dt;
+      if (g.m.position.y < 0.06) { g.m.position.y = 0.06; g.vy *= -0.35; g.vx *= 0.6; g.vz *= 0.6; g.rx *= 0.5; g.rz *= 0.5; }
+      if (g.life < 0.4) g.m.scale.setScalar(Math.max(0.01, g.m.scale.x * (1 - dt * 2.5)));
+      if (g.life <= 0) g.m.visible = false;
+    }
+  }
+
+  // 地面血迹：缓慢淡出
+  for (const d of decalPool) {
+    if (d.life > 0) {
+      d.life -= dt;
+      if (d.life < 6) d.m.material.opacity = 0.55 * (d.life / 6);
+      if (d.life <= 0) d.m.visible = false;
+    }
+  }
+
+  // 命中冲击环：快速扩散 + 淡出
+  for (const r of hitRingPool) {
+    if (r.life > 0) {
+      r.life -= dt;
+      const t = 1 - r.life / r.max;
+      const ease = 1 - Math.pow(1 - t, 3);
+      r.m.scale.setScalar((r.size || 1) * (0.4 + ease * 2.2));
+      r.m.material.opacity = 0.95 * (1 - ease);
+      if (r.life <= 0) r.m.visible = false;
+    }
+  }
+
+  // 伤害飘字：到期回收
+  for (const d of dmgNumPool) {
+    if (d.life > 0) {
+      d.life -= dt;
+      if (d.life <= 0) { d.el.style.display = 'none'; d.el.style.animation = 'none'; }
+    }
+  }
+
+  // 命中白闪（全屏重音）
+  if (JUICE.flash > 0) {
+    JUICE.flash = Math.max(0, JUICE.flash - dt * 5.5);
+    const hf = $('hitFlash');
+    if (hf) hf.style.opacity = String(Math.min(0.85, JUICE.flash));
+  }
+
+  // 多杀冲击线（CSS 动画：旋转炸开 + 淡出）
+  if (JUICE.rays > 0) {
+    JUICE.rays = Math.max(0, JUICE.rays - dt * 3.2);
+    const rays = $('impactRays');
+    if (rays && !rays._anim) {
+      rays._anim = true;
+      rays.classList.remove('on');
+      void rays.offsetWidth;
+      rays.classList.add('on');
+      clearTimeout(rays._t);
+      rays._t = setTimeout(() => { rays.classList.remove('on'); rays._anim = false; }, 560);
+    }
+  }
+
   // 身法闪避检测（威胁→脱离 / 变向）
   updateEvade(dt);
 
-  // 相机：越肩跟随
+  // 相机：越肩跟随（叠加随机震动 + 受击方向震动）
   const camShake = S.shake > 0 ? S.shake * 0.5 : 0;
-  const sx = (Math.random() - 0.5) * camShake, sy = (Math.random() - 0.5) * camShake;
+  const sx = (Math.random() - 0.5) * camShake + S.shakeX;
+  const sy = (Math.random() - 0.5) * camShake * 0.8 + S.shakeY;
   camera.position.set(S.playerX * 0.5 + 0.62 + sx, 2.15 + sy, 4.7 + S.playerZ);
   camera.lookAt(S.playerX * 0.7, 1.35, -6 + S.playerZ);
+  // 命中时轻微滚转（斜劈/横扫方向感）
+  camera.rotation.z += Math.sin(S.time * 44) * S.shake * 0.012;
   torch.position.set(S.playerX * 0.5, 2.3, 3.1 + S.playerZ);
   torch.target.position.set(S.playerX * 0.5, 1.2, -14 + S.playerZ);
   S.shake = Math.max(0, S.shake - dt * 3);
+  S.shakeX *= Math.max(0, 1 - dt * 6);
+  S.shakeY *= Math.max(0, 1 - dt * 6);
+
+  // 镜头推拉（FOV punch）：命中瞬间推近，多杀时推得更狠再弹回
+  JUICE.fovTarget += (FOV_BASE - JUICE.fovTarget) * Math.min(1, dt * 3.5);
+  JUICE.fov += (JUICE.fovTarget - JUICE.fov) * Math.min(1, dt * 14);
+  if (Math.abs(camera.fov - JUICE.fov) > 0.01) {
+    camera.fov = JUICE.fov;
+    camera.updateProjectionMatrix();
+  }
 
   // 受击遮罩衰减
   S.hitFlash = Math.max(0, S.hitFlash - dt * 2);
   vignette.style.opacity = S.hitFlash * 0.9;
+  // 低血量红脉冲（血越少跳得越快）
+  const lowEl = $('lowHp');
+  if (lowEl) {
+    const low = S.health / S.maxHealth < 0.35 && !S.over;
+    if (low !== lowEl._on) { lowEl._on = low; lowEl.classList.toggle('on', low); }
+    if (low) lowEl.style.animationDuration = (0.7 + (S.health / S.maxHealth) * 1.4) + 's';
+  }
+  // 残血判定（每帧检查，回血上来后自动复位，可再次触发）
+  checkLowHP();
 
   // 连杀超时归零（4 秒无击杀则中断连杀）
   if (S.killStreak > 0 && S.time - S.lastKillAt > 4) {
     S.killStreak = 0; S.streakTier = -1;
   }
 
-  // 脱战回血：4 秒未受伤后缓慢恢复（6 HP/秒）
-  if (!S.over && S.health < S.maxHealth && S.time - S.lastDamagedAt > 4) {
-    S.health = Math.min(S.maxHealth, S.health + 6 * dt);
+  // 脱战回血：闯关 4 秒 / +4 HP/s；BOSS 战 2.5 秒 / +9.2 HP/s（回血更快）
+  // 回血速度按最大生命同比缩放（100→66），保持「脱战后回满所需时间」不变
+  const regenDelay = S.mode === 'boss' ? 2.5 : 4;
+  const regenRate = S.mode === 'boss' ? 9.2 : 4;
+  if (!S.over && S.health < S.maxHealth && S.time - S.lastDamagedAt > regenDelay) {
+    S.health = Math.min(S.maxHealth, S.health + regenRate * dt);
   }
 
   updateHUD();
@@ -2765,7 +5030,8 @@ function render() {
 function loop() {
   requestAnimationFrame(loop);
   if (!S.running) { render(); return; }
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const realDt = Math.min(clock.getDelta(), 0.05);
+  const dt = timeTick(realDt);      // 顿帧 / 慢动作：真实时间与游戏时间分离
   update(dt);
   detectPose();
   render();
@@ -2775,25 +5041,80 @@ function loop() {
    键盘输入
 ============================================================ */
 const keys = {};
+let DEBUG_ALL = false;   // 测试模式：F2 一键解锁全部武器，方便单独测试
 addEventListener('keydown', e => {
   if (e.repeat) return;
   keys[e.code] = true;
-  if (e.code === 'Space' || e.code === 'KeyJ') { e.preventDefault(); triggerAttack(); if (S.weapon !== 'katana') S.gesture = '攻击!'; }
+  if (e.code === 'Space' || e.code === 'KeyJ') {
+    e.preventDefault();
+    // 武器选择状态下：攻击键 = 确认选中武器
+    if (S.selectMode) { confirmSelectMode(); return; }
+    // 蓄力武器（仅战锤）：长按蓄力，松开释放
+    if (S.weapon === 'hammer') { beginCharge(); }
+    else { triggerAttack(); if (S.weapon !== 'katana') S.gesture = '攻击!'; }
+  }
   if (e.code === 'KeyZ' && S.weapon === 'katana') { triggerAttack('katana', { form: 'slash' }); S.gesture = '斜劈!'; }
   if (e.code === 'KeyX' && S.weapon === 'katana') { triggerAttack('katana', { form: 'chop' }); S.gesture = '竖砍!'; }
   if (e.code === 'KeyC' && S.weapon === 'katana') { triggerAttack('katana', { form: 'thrust' }); S.gesture = '捅刺!'; }
+  // F：开启狂暴时刻（BOSS 战）
+  if (e.code === 'KeyF' && S.mode === 'boss' && S.running && !S.over) {
+    e.preventDefault();
+    if (BOSS.berserk > 0) announce('狂暴时刻进行中', '#ffd60a');
+    else if (BOSS.rage < BOSS.rageMax) announce('狂怒条还没满 · 继续打小兵', '#9aa0ad');
+    else triggerBerserk();
+  }
+  // E：键盘版的「抱胸选择」（无摄像头时也能切换武器）
+  if (e.code === 'KeyE' && S.running && !S.over) {
+    e.preventDefault();
+    if (S.selectMode) confirmSelectMode();
+    else enterSelectMode(true);
+  }
+  // Esc：取消武器选择
+  if (e.code === 'Escape' && S.selectMode) {
+    exitSelectMode();
+    announce('已取消武器选择', '#9aa0ad');
+  }
   if (e.code === 'Digit1') switchWeapon('fist');
-  if (e.code === 'Digit2') switchWeapon('knife');
+  if (e.code === 'Digit2') switchWeapon('gun');
   if (e.code === 'Digit3') switchWeapon('katana');
-  if (e.code === 'Digit4') switchWeapon('gun');
+  if (e.code === 'Digit4') switchWeapon('staff');
+  if (e.code === 'Digit5') switchWeapon('hammer');
+  if (e.code === 'Digit6') switchWeapon('daggers');
+  if (e.code === 'Digit7') switchWeapon('whip');
+  if (e.code === 'Digit8') switchWeapon('bow');
+  if (e.code === 'Digit9') switchWeapon('flail');
+  if (e.code === 'Digit0') switchWeapon('flail');
+  // 调试：F2 一键解锁/恢复全部武器
+  if (e.code === 'F2') {
+    e.preventDefault();
+    DEBUG_ALL = !DEBUG_ALL;
+    S.unlocked = new Set(['fist', 'gun']);
+    if (DEBUG_ALL) for (const k of Object.keys(WEAPONS)) S.unlocked.add(k);
+    announce(DEBUG_ALL ? '测试模式 ON · 全部武器已解锁，按 1~0 / - 切换' : '测试模式 OFF · 武器恢复按波次解锁', DEBUG_ALL ? '#7cfc00' : '#ff6b6b');
+    if (phoneWs && phoneWs.readyState === 1) {
+      for (const w of Object.keys(WEAPONS)) {
+        if (WEAPONS[w].unlock) phoneWs.send(JSON.stringify({ type: 'unlock', w, unlocked: S.unlocked.has(w) }));
+      }
+    }
+  }
 });
-addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('keyup', e => {
+  keys[e.code] = false;
+  // 松开攻击键：蓄力武器释放
+  if ((e.code === 'Space' || e.code === 'KeyJ') && S.charging) releaseCharge();
+});
 
 function keyboardUpdate() {
   let dir = 0;
   if (keys['KeyA'] || keys['ArrowLeft']) dir -= 1;
   if (keys['KeyD'] || keys['ArrowRight']) dir += 1;
-  S.keyVX = dir * 4.5;
+  if (S.selectMode) {
+    // 武器选择状态：A/D 用来滑动武器转盘（键盘版）
+    S.wheelScroll += dir * 0.033 * 6;
+    S.keyVX = 0;
+  } else {
+    S.keyVX = dir * 4.5;
+  }
   let fz = 0;
   if (keys['KeyW'] || keys['ArrowUp']) fz -= 1;
   if (keys['KeyS'] || keys['ArrowDown']) fz += 1;
@@ -2808,25 +5129,45 @@ function resetGame() {
   S.health = S.maxHealth; S.score = 0; S.kills = 0; S.distance = 0;
   S.difficulty = 1; S.time = 0; S.comboCount = 0; S.lastComboAt = -1e9;
   S.phase = 'walk'; S.encounterIndex = 0; S.nextEncounterAt = FIRST_ENCOUNTER; S.clearTimer = 0; S.waveLabel = '';
-  // 武士刀每局重新锁定，重开后从第 1 波开始
-  S.katanaUnlocked = false; S.katanaForm = 0; S.weapon = 'fist';
+  // 武器解锁：闯关按波次解锁 / BOSS 战全部可用 / 训练只锁选定的一把
+  if (S.mode === 'boss') {
+    S.unlocked = new Set(Object.keys(WEAPONS));
+  } else if (S.mode === 'train') {
+    S.unlocked = new Set(S.trainWeapon ? [S.trainWeapon] : ['fist']);
+  } else {
+    S.unlocked = new Set(['fist', 'gun']);
+    if (DEBUG_ALL) for (const k of Object.keys(WEAPONS)) S.unlocked.add(k);   // 测试模式下重开仍保留全解锁
+  }
+  S.weaponForm = 0; S.weapon = 'fist';
+  if (S.mode === 'boss' && WEAPONS[S.startWeapon]) S.weapon = S.startWeapon;
+  if (S.mode === 'train' && WEAPONS[S.trainWeapon]) S.weapon = S.trainWeapon;
+  S.charging = false; S.chargeStart = 0; S.chargeWeapon = '';
   S.seenWeapons = new Set(); S.seenArchs = new Set();   // 每局重置登场提示
   GT.blade.on = false; lastBladeAt = -1e9; lastLockedMsgAt = -1e9;
-  setWeaponModel('fist');
-  const wl0 = $('weaponLabel'); if (wl0) wl0.textContent = WEAPONS.fist.name;
+  setWeaponModel(S.weapon);
+  const wl0 = $('weaponLabel'); if (wl0) wl0.textContent = WEAPONS[S.weapon].name;
   if (phoneWs && phoneWs.readyState === 1) {
-    phoneWs.send(JSON.stringify({ type: 'unlock', w: 'katana', unlocked: false }));
-    phoneWs.send(JSON.stringify({ type: 'weapon', w: 'fist' }));
+    phoneWs.send(JSON.stringify({ type: 'reset' }));
+    phoneWs.send(JSON.stringify({ type: 'weapon', w: S.weapon }));
   }
   S.attack = null; S.attackQueue = []; S.playerX = 0; S.playerVX = 0;
   S.playerZ = 0; S.playerVZ = 0; S.faceTargetZ = 0; S.faceDepth = 0;
-  S.gunCooldown = 0; S.keyVX = 0; S.keyVZ = 0; S.dodgeVX = 0; S.bodyDodge = 0;
+  S.gunCooldown = 0; S.bowCooldown = 0; S.gunHand = 'R'; GUN_CD.R = 0; GUN_CD.L = 0; S.keyVX = 0; S.keyVZ = 0; S.dodgeVX = 0; S.bodyDodge = 0;
   S.killStreak = 0; S.lastKillAt = -1e9; S.streakTier = -1;
+  S._lowShown = false;   // 残血提示：每局重置
   S.knockCharge = 0; S.lastKnockAt = -1e9; S.lastKnockWeapon = '';   // 连击充能清零
   // 结算统计清零
   S.maxCombo = 0; S.formsUsed = new Set(); S.guardTime = 0;
   S.punches = 0; S.blades = 0; S.dodges = 0; S.shots = 0; S.sway = 0;
   S.lastDamagedAt = -1e9;
+  S.hurtCd = 0; S.shakeX = 0; S.shakeY = 0;
+  JUICE.hitStop = 0; JUICE.slow = 0; JUICE.slowTarget = 1; JUICE.scale = 1;
+  JUICE.fov = FOV_BASE; JUICE.fovTarget = FOV_BASE; JUICE.flash = 0; JUICE.rays = 0;
+  camera.fov = FOV_BASE; camera.updateProjectionMatrix();
+  const hf0 = $('hitFlash'); if (hf0) hf0.style.opacity = '0';
+  const rays0 = $('impactRays'); if (rays0) { rays0.classList.remove('on'); rays0._anim = false; }
+  const low0 = $('lowHp'); if (low0) { low0.classList.remove('on'); low0._on = false; }
+  for (const d of dmgNumPool) { d.life = 0; d.el.style.display = 'none'; d.el.style.animation = 'none'; }
   S.defending = false; S.guardHold = 0;
   const kfEl = $('killfeed'); if (kfEl) kfEl.innerHTML = '';
   PUNCH.combo = 0; PUNCH.lastAt = -1e9; PUNCH.shownTier = -1; PUNCH.shownMile = -1; PUNCH.log = []; PUNCH.lastTitle = ''; PUNCH.lastTitleAt = -1e9;
@@ -2834,6 +5175,29 @@ function resetGame() {
   player.root.position.z = 0;
   while (bullets.length) { const b = bullets.pop(); b.mesh.visible = false; bulletMeshes.push(b.mesh); }
   while (zombies.length) despawnZombie(zombies[0]);
+  // BOSS：重置血量/进度/狂怒/冲击波；非 BOSS 模式则隐藏 BOSS 模型
+  if (S.mode === 'boss') {
+    resetBossState();
+  } else if (bossMesh) {
+    bossMesh.root.visible = false;
+    BOSS.active = false;
+    for (const w of BOSS.waves) removeWave(w);
+    BOSS.waves.length = 0;
+  }
+  // 抱胸武器选择状态复位
+  S.selectMode = false; S.selectHold = 0; S.selectCancel = 0; S.selectT = 0;
+  S.hugArmed = false; S.wheelAccum = 0; S.bodySlide = 0;
+  const wheelEl = $('wheel'); if (wheelEl) wheelEl.classList.remove('on');
+  // 模式标签
+  const mt0 = $('modeTag');
+  if (mt0) {
+    mt0.style.display = 'block';
+    mt0.textContent = MODE_LABEL[S.mode] + (S.mode === 'train' && WEAPONS[S.trainWeapon]
+      ? ' · ' + WEAPONS[S.trainWeapon].name : '') + (S.mode === 'boss' ? ' · BOSS' : '');
+  }
+  const bh0 = $('bossHud'), rh0 = $('rageHud');
+  if (bh0) bh0.style.display = (S.mode === 'boss') ? 'block' : 'none';
+  if (rh0) rh0.style.display = (S.mode === 'boss') ? 'block' : 'none';
   vignette.style.opacity = '0';
   hud.style.display = 'block';
   overScr.style.display = 'none';
@@ -2846,17 +5210,28 @@ function resetGame() {
 let lastLockedMsgAt = -1e9;
 function switchWeapon(w) {
   if (!WEAPONS[w]) return;
-  if (w === 'katana' && !S.katanaUnlocked) {
+  // 单项训练：全程锁死只用这一把武器
+  if (S.mode === 'train' && w !== S.trainWeapon) {
     if (S.time - lastLockedMsgAt > 2) {
       lastLockedMsgAt = S.time;
-      announce('武士刀未解锁 · 通关第 3 波获得', '#ff6b6b');
+      announce('单项训练中 · 只能使用' + (WEAPONS[S.trainWeapon] ? WEAPONS[S.trainWeapon].name : '选定武器'), '#ffd60a');
+    }
+    return;
+  }
+  if (WEAPONS[w].unlock && !S.unlocked.has(w)) {
+    if (S.time - lastLockedMsgAt > 2) {
+      lastLockedMsgAt = S.time;
+      announce(WEAPONS[w].name + '未解锁 · ' + weaponLockLabel(w) + '获得', '#ff6b6b');
     }
     return;
   }
   S.weapon = w;
+  S.weaponForm = 0;
+  S.charging = false;   // 换武器取消蓄力
+  if (GW[w]) GW[w].on = false;   // 重置该武器的手势状态
+  if (w === 'gun') { GW.gunR.on = false; GW.gunL.on = false; GW.gunR.dir = 0; GW.gunL.dir = 0; }
   setWeaponModel(w);
-  const wl = $('weaponLabel');
-  if (wl) wl.textContent = w === 'katana' ? WEAPONS.katana.name + '·' + KATANA_FORMS[S.katanaForm].name : WEAPONS[w].name;
+  setWeaponLabel(WEAPONS[w].name);
   announce('切换：' + WEAPONS[w].name, '#ffd60a');
   introWeapon(w);   // 首次切换到该武器时弹大提示（怎么用 + 特性）
   if (phoneWs && phoneWs.readyState === 1) {
@@ -2873,13 +5248,17 @@ let phoneWs = null;
 function connectPhone() {
   // GitHub Pages 是纯静态托管，没有 WebSocket 后端，手机联动不可用——直接跳过，避免反复重连刷错误
   if (/\.github\.io$/.test(location.host)) { S.phoneConnected = false; return; }
+  if (!location.host) { S.phoneConnected = false; return; }   // file:// 打开时没有 host，跳过
   try {
     const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
     phoneWs = new WebSocket(proto + location.host + '/ws?role=game');
   } catch (e) { return; }
   phoneWs.onopen = () => {
     S.phoneConnected = true; updatePhoneBadge();
-    phoneWs.send(JSON.stringify({ type: 'unlock', w: 'katana', unlocked: S.katanaUnlocked }));
+    // 同步所有武器的锁定状态给手机端
+    for (const w of Object.keys(WEAPONS)) {
+      if (WEAPONS[w].unlock) phoneWs.send(JSON.stringify({ type: 'unlock', w, unlocked: S.unlocked.has(w) }));
+    }
     phoneWs.send(JSON.stringify({ type: 'weapon', w: S.weapon }));
   };
   phoneWs.onclose = () => { S.phoneConnected = false; S.phoneActive = false; updatePhoneBadge(); setTimeout(connectPhone, 1500); };
@@ -2891,9 +5270,14 @@ function connectPhone() {
       switchWeapon(m.w);
     } else if (m.type === 'swing') {
       if (m.w && m.w !== S.weapon) switchWeapon(m.w);
-      const f = KATANA_FORMS.find(x => x.id === m.form);
-      if (S.weapon === 'katana' && f) triggerAttack('katana', { form: f.id });
-      else triggerAttack();
+      // 手机端挥动：战锤进入蓄力→下一次挥动释放；其它直接触发
+      if (S.weapon === 'hammer') {
+        if (S.charging) releaseCharge(); else beginCharge();
+      } else {
+        const f = ALL_FORMS.find(x => x.id === m.form);
+        if (f) triggerAttack(S.weapon, { form: f.id });
+        else triggerAttack();
+      }
     } else if (m.type === 'motion') {
       S.phoneGamma = parseFloat(m.gamma) || 0;
       S.phoneActive = true;
@@ -2910,30 +5294,66 @@ sensRange.addEventListener('input', () => {
   sensVal.textContent = S.sensitivity.toFixed(1) + 'x';
 });
 
-$('btnStart').addEventListener('click', async () => {
+/* ============================================================
+   主菜单接线
+============================================================ */
+function menuEnterAudio() {
   ensureAudio();
   loadSfx();   // 后台加载 CC0 音效采样，完成后自动起配乐
-  $('btnStart').disabled = true;
-  $('loading').style.display = 'flex';
-  $('camStatus').textContent = '';
-  // 只等待摄像头授权（可能弹窗），不再阻塞在姿态模型下载上——模型后台异步加载
-  await startCamera().catch(() => { S.camOK = false; });
-  $('loading').style.display = 'none';
-  if (S.camOK) $('camStatus').textContent = '摄像头已开启，姿态模型后台加载中（首次约 40 秒，之后浏览器缓存秒开）…';
-  else $('camStatus').textContent = '未授权摄像头，使用键盘游玩';
-  startScr.style.display = 'none';
-  resetGame();   // 立即进入游戏（键盘可玩），模型加载完成后自动启用体感
-  introWeapon('fist');   // 开局拳头大提示
-  initPose().then(() => {
-    S.poseOK = true;
-    $('camStatus').textContent = S.camOK ? '✓ 摄像头动作捕捉已就绪' : '✓ 体感已就绪';
-  }).catch(e => {
-    S.poseOK = false; diag.model = '失败'; diag.err = String(e.message || e).slice(0, 60);
-    $('camStatus').textContent = '⚠️ 姿态识别不可用，可用键盘游玩';
-  });
+}
+
+// 闯关模式：完全复用原有玩法
+$('mCampaign').addEventListener('click', () => {
+  menuEnterAudio();
+  startMode('campaign', 'fist');
 });
 
-$('btnRestart').addEventListener('click', () => { resetGame(); introWeapon('fist'); });
+// BOSS 战：先选武器，再进场
+$('mBoss').addEventListener('click', () => {
+  menuEnterAudio();
+  renderWeaponGrid('bossWpnGrid', 'bossWpnDetail', 'boss');
+  hideAllScreens();
+  showScreen(scrBossPick);
+});
+
+// 单项训练：选武器 → 看数值/动作/肌肉 → 只用这一把闯关
+$('mTrain').addEventListener('click', () => {
+  menuEnterAudio();
+  renderWeaponGrid('trainWpnGrid', 'trainWpnDetail', 'train');
+  hideAllScreens();
+  showScreen(scrTrainPick);
+});
+
+// 帮助：分类展示
+$('mHelp').addEventListener('click', () => {
+  renderHelp();
+  hideAllScreens();
+  showScreen(scrHelp);
+});
+
+$('btnBossBack').addEventListener('click', gotoMenu);
+$('btnTrainBack').addEventListener('click', gotoMenu);
+$('btnHelpBack').addEventListener('click', gotoMenu);
+$('btnGameOverMenu').addEventListener('click', gotoMenu);
+
+$('btnBossGo').addEventListener('click', () => startMode('boss', S.bossPick));
+$('btnTrainGo').addEventListener('click', () => startMode('train', S.trainPick));
+
+// 再来一次：按当前模式重开
+$('btnRestart').addEventListener('click', () => {
+  if (S.mode === 'boss') startMode('boss', S.startWeapon);
+  else if (S.mode === 'train') startMode('train', S.trainWeapon);
+  else startMode('campaign', 'fist');
+});
+
+// 帮助页分类切换（武器 / 数值机制 / 动捕动作 / 肌肉群 / 僵尸机制 / BOSS战）
+$('helpTabs').addEventListener('click', e => {
+  const b = e.target.closest('.htab');
+  if (!b || !b.dataset.tab) return;
+  helpTab = b.dataset.tab;
+  for (const t of $('helpTabs').children) t.classList.toggle('on', t === b);
+  renderHelp();
+});
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
@@ -2945,12 +5365,13 @@ addEventListener('resize', () => {
 // 每帧键盘
 setInterval(() => { if (S.running && !S.over) keyboardUpdate(); }, 33);
 
-// 启动渲染循环（先显示标题后方的场景）
+// 启动渲染循环（先在主菜单后方展示场景）
 resetGame();
 S.running = false;
 hud.style.display = 'none';
 overScr.style.display = 'none';
-startScr.style.display = 'flex';
+hideAllScreens();
+showScreen(scrMenu);          // 一进入只显示主菜单，其余页面全部隐藏
 camera.position.set(0.62, 2.15, 4.7);
 camera.lookAt(0, 1.35, -6);
 loop();

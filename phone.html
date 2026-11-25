@@ -44,9 +44,14 @@
 
   <div class="grid">
     <button class="wbtn sel" data-w="fist"><span class="ico">👊</span>拳头</button>
-    <button class="wbtn" data-w="knife"><span class="ico">🔪</span>匕首</button>
-    <button class="wbtn locked" id="btnKatana" data-w="katana"><span class="ico">⚔️</span>武士刀<small id="katLock">🔒 第3波解锁</small></button>
-    <button class="wbtn" data-w="gun"><span class="ico">🔫</span>枪支</button>
+    <button class="wbtn" data-w="gun"><span class="ico">🔫</span>双枪</button>
+    <button class="wbtn locked" data-w="katana"><span class="ico">⚔️</span>武士刀<small>🔒 第3波</small></button>
+    <button class="wbtn locked" data-w="staff"><span class="ico">🥢</span>长棍<small>🔒 第5波</small></button>
+    <button class="wbtn locked" data-w="hammer"><span class="ico">🔨</span>战锤<small>🔒 第7波</small></button>
+    <button class="wbtn locked" data-w="daggers"><span class="ico">🗡️</span>双匕首<small>🔒 第9波</small></button>
+    <button class="wbtn locked" data-w="whip"><span class="ico">🪢</span>鞭子<small>🔒 第11波</small></button>
+    <button class="wbtn locked" data-w="bow"><span class="ico">🏹</span>弓箭<small>🔒 第14波</small></button>
+    <button class="wbtn locked" data-w="flail"><span class="ico">⛓️</span>流星锤<small>🔒 第17波</small></button>
   </div>
 
   <div class="readout" id="readout">等待传感器数据…</div>
@@ -60,10 +65,11 @@ const $ = id => document.getElementById(id);
 const dot = $('dot'), statusEl = $('status'), ipEl = $('ip');
 const weaponName = $('weaponName'), readout = $('readout'), swingFx = $('swingFx');
 
-const WEAPONS = { fist:'拳头', knife:'匕首', katana:'武士刀', gun:'枪支' };
+const WEAPONS = { fist:'拳头', gun:'双枪', katana:'武士刀', staff:'长棍', hammer:'战锤', daggers:'双匕首', whip:'鞭子', bow:'弓箭', flail:'流星锤' };
+const UNLOCK_WAVE = { katana:3, staff:5, hammer:7, daggers:9, whip:11, bow:14, flail:17 };
+const locked = {};   // { w: true/false }，锁定的武器不可选
+for (const w of Object.keys(WEAPONS)) locked[w] = UNLOCK_WAVE[w] ? true : false;
 let weapon = 'fist';
-let katanaLocked = true;
-const katBtn = $('btnKatana'), katLock = $('katLock');
 let ws = null;
 
 function connect() {
@@ -75,14 +81,31 @@ function connect() {
   ws.onmessage = e => {
     let m; try { m = JSON.parse(e.data); } catch (err) { return; }
     if (!m || !m.type) return;
-    if (m.type === 'unlock' && m.w === 'katana') {
-      katanaLocked = !m.unlocked;
-      katBtn.classList.toggle('locked', katanaLocked);
-      katLock.textContent = katanaLocked ? '🔒 第3波解锁' : '';
-      if (katanaLocked && weapon === 'katana') selectWeapon('fist', false);
-      statusEl.textContent = m.unlocked ? '武士刀已解锁' : '已连接';
+    if (m.type === 'unlock') {
+      if (!WEAPONS[m.w]) return;
+      const isLocked = !m.unlocked;
+      locked[m.w] = isLocked;
+      const btn = document.querySelector('.wbtn[data-w="' + m.w + '"]');
+      if (btn) {
+        btn.classList.toggle('locked', isLocked);
+        const sm = btn.querySelector('small');
+        if (sm) sm.textContent = isLocked ? ('🔒 第' + (UNLOCK_WAVE[m.w] || '?') + '波') : '';
+      }
+      if (isLocked && weapon === m.w) selectWeapon('fist', false);
+      statusEl.textContent = m.unlocked ? (WEAPONS[m.w] + '已解锁') : '已连接';
     } else if (m.type === 'weapon' && m.w && WEAPONS[m.w]) {
       selectWeapon(m.w, false);   // 电脑端切换同步到手机，不回发避免循环
+    } else if (m.type === 'reset') {
+      // 重开一局：所有武器重新锁定（拳/双枪保持可用）
+      for (const w of Object.keys(WEAPONS)) locked[w] = UNLOCK_WAVE[w] ? true : false;
+      document.querySelectorAll('.wbtn').forEach(btn => {
+        const w = btn.dataset.w;
+        const lk = !!locked[w];
+        btn.classList.toggle('locked', lk);
+        const sm = btn.querySelector('small');
+        if (sm) sm.textContent = lk ? ('🔒 第' + UNLOCK_WAVE[w] + '波') : '';
+      });
+      selectWeapon('fist', false);
     }
   };
 }
@@ -97,11 +120,12 @@ function selectWeapon(w, relay) {
 }
 document.querySelectorAll('.wbtn').forEach(btn => {
   btn.addEventListener('click', () => {
-    if (btn.dataset.w === 'katana' && katanaLocked) {
-      statusEl.textContent = '武士刀：通关第3波后解锁';
+    const w = btn.dataset.w;
+    if (locked[w]) {
+      statusEl.textContent = WEAPONS[w] + '：通关第' + UNLOCK_WAVE[w] + '波后解锁';
       return;
     }
-    selectWeapon(btn.dataset.w);
+    selectWeapon(w);
   });
 });
 
